@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install/setup.sh

@@ -1,0 +1,8 @@
+prefix=/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install
+
+Name: video_mapping
+Description: Description of video_mapping
+Version: 0.0.1
+Cflags: -I/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install/include
+Libs: -L/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install/lib 
+Requires: roscpp std_msgs rospy message_runtime
