@@ -1,3 +1,4 @@
 adquisition_module/catkin_ws/build
 adquisition_module/catkin_ws/devel
 adquisition_module/catkin_ws/src/video_mapping/utils/configs/cam_ports.yaml
+*.pyc

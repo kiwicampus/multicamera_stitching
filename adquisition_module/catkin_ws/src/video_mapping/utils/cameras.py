@@ -42,49 +42,39 @@ from video_mapping.srv import GetMoreCameraStatusResponse
 
 # =============================================================================
 # Video cameras ports
-def read_cam_ports(file_path="configs/cam_ports.yaml"):
+def read_cam_ports(file_path):
     abs_path = os.path.join(os.path.dirname(__file__), file_path)
     if os.path.isfile(abs_path):
         with open(abs_path, 'r') as stream:
             data_loaded = yaml.safe_load(stream)
             return data_loaded
     else:
-        default_ports = {'C': '1.0.0', 'L': '1.0.0', 'R': '1.0.0'}
+        default_ports = {'CAM1': '1.0.0'}
         with io.open(abs_path, 'w', encoding='utf8') as outfile:
             yaml.dump(default_ports, outfile, default_flow_style=False, allow_unicode=True)
         return default_ports
 
-PORTS = read_cam_ports()
-
 # =============================================================================
 class CameraHandler(Thread, Debugger):
 
-    def __init__(self, camera_number, height, width, camera_id, mtx, dist, start_reading=True, camera_enabled=True):
+    def __init__(self, camera_number, height, width, camera_id):
         """ Initializes camera Handler thread 
         Args:
             camera_number: `int` camera port number
             height: `int` video camera height
             width: `int` video camera width
             camera_id: `int` camera identifier
-            mtx: `numpy.narray` camera's distortion matrix
-            dist: `numpy.narray` camera's distortion vector
-            start_reading: `boolean` Enable/Disable image start reading
-            camera_enabled: `boolean` Enable/Disable camera reading
         Returns:
         """
 
         # start legacy component
         super(CameraHandler, self).__init__() 
 
-        self.grab_frames = start_reading # Enable/Disable image reading
         self.camera_number = camera_number # Camera port number
         self.video_device = "/dev/video" + str(camera_number) # Camera video device
         self.height = height # Video height
         self.width = width # Video width
         self.camera_id = camera_id # Camera label
-
-        self.debug_str = "OK" # string used to expose camera condition in service get_camera_status_verbose
-        self.camera_enabled = camera_enabled # specifies if even it tries to read the camera
 
         self.image = None # Camera Image
         self.grabbed = None # Camera status
@@ -95,20 +85,8 @@ class CameraHandler(Thread, Debugger):
         self.daemon = True
         self.video_handler = None
 
-        # If camera is enable start video thread
-        if self.camera_enabled:
-            
-            # Start camera port
-            self.init_video_handler() 
-
-        # If camera is not enable then report any issues
-        else:
-            if self.camera_number is None: # If camera was not found
-                self.debug_str = "[ERROR]: NO {} CAMERA FOUND!".format(self.camera_id)
-            else: # If camera not initialized by environment variables
-                self.debug_str = "[WARNING]:Camera {} found ({}), but not activated by software (check DATA_CAPTURE or REAR_CAMERA_ENABLED env vars)".format(
-                    self.camera_id, self.video_device)
-            self.set_error_image("[ERROR]: READ {} IMAGE ERROR!".format(self.camera_id))
+        # Start camera port
+        self.init_video_handler() 
 
     def init_video_handler(self):
         """ InitializeS video handler
@@ -119,41 +97,35 @@ class CameraHandler(Thread, Debugger):
         # Open camera port
         self.video_handler = cv2.VideoCapture(self.video_device)
 
-        # Set desired size to camera handler
-        # Some OpenCV versions requirers assing the size twice -Dont know why
-        self.set_video_size()
-
         # opens successfully the camera
         if self.video_handler.isOpened(): 
 
-            self.set_video_size()
-    
-            self.debugger(DEBUG_LEVEL_0, "[INFO]: Loading {} ({}) first image...".format(
-                self.camera_id, self.video_device))
+            # Set desired size to camera handler
+            # Some OpenCV versions requirers assing the size twice -Dont know why
+            self.set_video_size(); self.set_video_size()
 
-            try: # Grab frame from camera and assing properties
+            try: # Grab frame from camera and assing properties                
                 self.grabbed, self.image = self.video_handler.read()
                 self.height, self.width = (
                     int(self.video_handler.get(cv2.CAP_PROP_FRAME_HEIGHT)),
                     int(self.video_handler.get(cv2.CAP_PROP_FRAME_WIDTH)))
 
+                if self.grabbed:
+                    self.debugger(DEBUG_LEVEL_0, "{}:{} captured first image".format(
+                        self.camera_id, self.video_device), log_type="info")
+                else:
+                    self.debugger(DEBUG_LEVEL_0, "{}:{} did not capture first image".format(
+                        self.camera_id, self.video_device), log_type="warn")
+
             # If not possible open camera port print exception 
             except Exception as e:
                 self.debugger(DEBUG_LEVEL_0,
-                    "[ERROR]: Something error ocurred reading frames from camera {} (device {}) -> {}".format(
+                    "Something error ocurred reading frames from camera {} (device {}) -> {}".format(
                         self.camera_id, self.video_device, e), log_type = 'err')
                 self.grabbed = False
-
-        # If opening camera process did not succeed then report the error
-        if not self.video_handler.isOpened() or not self.grabbed:
-            if self.camera_number is not None:
-                self.debug_str = "[ERROR]: Camera {} on {} could not be opened, may have been disconnected or 'No space left on device' error".format(
-                    self.camera_id, self.video_device)
-                self.debugger(DEBUG_LEVEL_0, self.debug_str, log_type = 'err')
-            else:
-                self.debug_str = "NO {} CAMERA FOUND!".format(self.camera_id)
-            self.video_handler = None
-            self.set_error_image("NO {} CAMERA FOUND!".format(self.camera_id))
+        else:
+            self.debugger(DEBUG_LEVEL_0, "{}:{} not recognized or not space left on device".format(
+                self.camera_id, self.video_device), log_type="warn")
     
     def set_video_size(self):
         """ Assigns video handler's size
@@ -222,15 +194,15 @@ class CameraHandler(Thread, Debugger):
 
 class CamerasSupervisorBase(Debugger):
 
-    def __init__(self, mtx, dist, CameraClass=CameraHandler, 
-        cameras_labels=["L", "C", "R"]):
+    def __init__(self, CameraClass=CameraHandler):
 
         # ---------------------------------------------------------------------
         # start legacy components
         super(CamerasSupervisorBase, self).__init__()
 
         # Set cameras labels
-        self.cameras_labels = cameras_labels
+        self.cameras_labels = read_cam_ports(os.environ.get("CAM_PORTS_PATH", 
+            "configs/cam_ports.yaml"))
 
         # Get video/image dimensions
         self.video_height = int(os.environ.get("VIDEO_HEIGHT", 360))
@@ -239,26 +211,27 @@ class CamerasSupervisorBase(Debugger):
         # Get available connected cameras
         self.usb_ports_cameras = self.find_cameras()
 
-        # Get video device number
-        self.video_numbers = list(map(lambda desired_camera: self.get_video_device(
-            desired_camera, self.usb_ports_cameras), self.cameras_labels))
-        self.debugger(DEBUG_LEVEL_0, "[INFO]: Video device numbers detected: {}".format(
-            self.video_numbers))
+        # Print some info
+        self.debugger(DEBUG_LEVEL_0, "Video device numbers detected: {}".format(
+            len(self.usb_ports_cameras)), log_type="warn" if not len(self.usb_ports_cameras) else "info")
         
         # ---------------------------------------------------------------------
         # Set process variables
+        self.video_numbers = [self.usb_ports_cameras[str(port)] for port in self.cameras_labels.values() if port in self.usb_ports_cameras]
         self.num_cameras = len(self.cameras_labels)
-        initiate_cameras = [True]*self.num_cameras
-        enabled_cameras = [True]*self.num_cameras
 
         # ---------------------------------------------------------------------
         # Initializes camera handler threads objects
         
         self.camera_handlers = [CameraClass(
-            video, self.video_height, self.video_width, camera_id, mtx, dist,
-            start_reading=start, camera_enabled=camera_enabled) 
-            for video, start, camera_id, camera_enabled in zip(
-                self.video_numbers, initiate_cameras, self.cameras_labels, enabled_cameras)]
+            video, self.video_height, self.video_width, camera_id) 
+            for video, camera_id in zip(self.video_numbers, self.cameras_labels)]
+
+
+        return
+
+
+ 
 
         # Check camera status
         self.cameras_status, _ = self.check_cameras(self.camera_handlers, self.cameras_labels)
@@ -356,21 +329,6 @@ class CamerasSupervisorBase(Debugger):
 
         return avail_ports
 
-    def get_video_device(self, desired_camera, usb_ports_cameras):     
-        """ returns video device number 
-        Args:
-            desired_camera: `type` description
-            usb_ports_cameras: `type` description
-        Returns:
-            `list` list with video devices ports and numbers
-        """
-        
-        port = PORTS[desired_camera]
-        if not port in usb_ports_cameras:
-            return None
-        else:
-            return usb_ports_cameras[port]
-
     def check_cameras(self, camera_handlers, camera_tags, stdout=True):
         status = []
         status_str = []
@@ -403,6 +361,6 @@ class CamerasSupervisor(CamerasSupervisorBase, Debugger):
 
         super(CamerasSupervisor, self).__init__(*args, **kwargs)
 
-        map(lambda o: o.start(), self.camera_handlers)
+        # map(lambda o: o.start(), self.camera_handlers)
 
 # =============================================================================

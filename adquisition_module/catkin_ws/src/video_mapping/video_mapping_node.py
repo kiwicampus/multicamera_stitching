@@ -42,10 +42,22 @@ def main():
     # Initiate CameraSupervisor Class that handles the threads that reads the 
     # cameras. Dont take last label, since it doesn't correspond to a physical 
     # device
-    cameras_labels = ["L", "C", "R"] # define camera labels order for memory mapping
-    cameras_supervisor = CamerasSupervisor( #mtx, dist 
-        None, None, cameras_labels=cameras_labels)
+    cameras_supervisor = CamerasSupervisor()
         
+    # TEST CHECK POINT - TEST CHECK POINT - TEST CHECK POINT - TEST CHECK POINT - 
+    while not rospy.is_shutdown(): r.sleep()
+
+
+
+
+
+
+
+
+
+
+
+
     # video mapping for raw images
     video_map = MultiImagesMemmap(
         memmap_path=video_path, labels=cameras_labels, name="main_stream", 
