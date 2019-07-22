@@ -1,8 +1,0 @@
-prefix=/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install
-
-Name: data_capture
-Description: Description of data_capture
-Version: 0.0.0
-Cflags: -I/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install/include
-Libs: -L/home/overcode/multicamera_stitching/adquisition_module/catkin_ws/install/lib 
-Requires: roscpp std_msgs rospy message_runtime

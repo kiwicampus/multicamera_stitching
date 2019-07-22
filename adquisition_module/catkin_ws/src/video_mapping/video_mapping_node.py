@@ -68,10 +68,10 @@ def main():
         # Concatenate all list images in one big 3D matrix
         data = np.concatenate(images, axis=axis_concat)
         video_map.write(data) # Write into memory
-        print('\nLooping function')
+
         # Suspend execution of R expressions for a specified time interval. 
         r.sleep()
-    print('\nEnd of function')
+
 # =============================================================================
 if __name__ == '__main__':
     try:
