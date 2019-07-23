@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # =============================================================================
 import numpy as np
 import rospy
@@ -12,7 +11,6 @@ from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBU
 
 from easy_memmap import MultiImagesMemmap, EasyMemmap
 from utils.cameras import CamerasSupervisor
-from std_msgs.msg import Bool
 
 # =============================================================================
 def setProcessName(name):
@@ -27,59 +25,45 @@ def setProcessName(name):
 # =============================================================================
 def main():
 
-    # Get video memmap absolute path
-    video_path = os.getenv(key="MEMMAP_PATH", default="/tmp") 
+    LOCAL_RUN=int(os.getenv(key="LOCAL_RUN", default=0))
 
-    # Get axis for concatenating all thread images: Axis=1 showed almost 10x 
-    # better performance than axis=2, and slightly better than axis=0
-    axis_concat = int(os.getenv(key="MMAP_AXIS_CONCAT", default=1))
-
+    # Start rosnode
     rospy.init_node('video_mapping_node', anonymous=True) # Node initialization
     rospy.set_param('/video_mapping/debug', 0) # Set node debugger
     setProcessName("video_mapping_node") # Set video mapping process name
     r = rospy.Rate(hz=30) # Set node rate
 
-    # Initiate CameraSupervisor Class that handles the threads that reads the 
-    # cameras. Dont take last label, since it doesn't correspond to a physical 
-    # device
+    # Initiate CameraSupervisor Class that handles the threads that reads the cameras
     cameras_supervisor = CamerasSupervisor()
-        
-    # TEST CHECK POINT - TEST CHECK POINT - TEST CHECK POINT - TEST CHECK POINT - 
-    while not rospy.is_shutdown(): r.sleep()
-
-
-
-
-
-
-
-
-
-
-
+    cam_labels = cameras_supervisor.cameras_labels.keys()
 
     # video mapping for raw images
-    video_map = MultiImagesMemmap(
-        memmap_path=video_path, labels=cameras_labels, name="main_stream", 
-        axis=axis_concat, mode="w")
+    video_map = MultiImagesMemmap(memmap_path=os.getenv(key="MEMMAP_PATH", default="/tmp"), 
+      labels=cam_labels, name="main_stream", axis=1, mode="w")
 
     # Setting debuggers
     main_debugger = Debugger() # Debugger that logs properly in stdout
-    # Used to update logging level. DEPRECATED since reading rosparam in main loop is SLOW
-    list_debuggers = [cameras_supervisor, main_debugger]+cameras_supervisor.camera_handlers
-    
     main_debugger.debugger(DEBUG_LEVEL_0, "Initiating main loop")
+
     while not rospy.is_shutdown():
+
         # Read into a list all images read from the threads
         images = list(map(lambda o: o.image, cameras_supervisor.camera_handlers))
 
-        #Show video streams
-        for idx, cam_label in enumerate(cameras_labels):
-            cv2.imshow("CAM{}".format(cam_label), images[idx]); cv2.waitKey(10)
+        # ---------------------------------------------------------------------
+        # Visual debugging - Visual debugging - Visual debugging - Visual debug
+        if LOCAL_RUN:
+            for idx, img in enumerate(images):
+                cv2.imshow("CAM{}".format(cam_labels[idx]), img)
+            key = cv2.waitKey(10)
+            if   key==113: # (Q) If press q then quit
+                exit()
+            elif key!=-1:  # No key command
+                print("Command or key action no found: {}".format(key))
+        # ---------------------------------------------------------------------
 
-        # Concatenate all list images in one big 3D matrix
-        data = np.concatenate(images, axis=axis_concat)
-        video_map.write(data) # Write into memory
+        # Concatenate all list images in one big 3D matrix and write them into memory
+        video_map.write(np.concatenate(images, axis=1)) 
 
         # Suspend execution of R expressions for a specified time interval. 
         r.sleep()
