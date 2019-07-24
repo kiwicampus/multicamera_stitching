@@ -19,9 +19,9 @@ case "$1" in
       # run application you want to start
       export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/catkin_ws/src/video_mapping/src/utils"
       source /opt/ros/kinetic/setup.bash
-      source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/catkin_ws/devel/setup.bash
-      source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/config/local_env_vars.sh
-      roslaunch /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/config/MotionTestTrack.launch
+      source "${PWD%/*}/catkin_ws/devel/setup.bash"
+      source "${PWD%/*}/config/local_env_vars.sh"
+      roslaunch "${PWD%/*}/config/MotionTestTrack.launch"
     ;;
   stop)
     echo "Stopping MotionTestTrack Vision System"

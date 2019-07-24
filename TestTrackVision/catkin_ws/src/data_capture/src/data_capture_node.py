@@ -34,6 +34,7 @@ from glob import glob
 
 # =============================================================================
 class DataCapture(Debugger):
+
     def __init__(self, csv_file, dest_folder):
         """ initializes class
         Args:
@@ -46,6 +47,10 @@ class DataCapture(Debugger):
         # inherit from other classes
         super(DataCapture, self).__init__()
 
+        # Subscriber to enable/disable data capturing
+        rospy.Subscriber(name="MotionTestTrack/data_capture/capture", data_class=Bool, 
+            callback=self.capture_cb, queue_size=2)
+
         self.csv_file = csv_file # csv absolute path to save images
         self.dest_folder = dest_folder # Destination folder to save images
         self.quality = int(os.getenv(key='IMG_QUALITY', default=80)) # [0-100] Quality to save images
@@ -55,14 +60,12 @@ class DataCapture(Debugger):
         self.desired_fps = int(os.getenv(key='DATA_CAPTURE_FPS', default=15))
         self.fps = 0. # Frame rate to capture data
         self.space_left = 100. # Space lef in usb device
-
+        
         # Camera status service to check state of cameras 
         self.camera_status_service = rospy.ServiceProxy(
             name='video_mapping/cameras_status', service_class=CamerasStatus)
-
-        # Subscriber to enable/disable data capturing
-        rospy.Subscriber(name="cumbia_rover/data_capture/capture", data_class=Bool, 
-            callback=self.capture_cb, queue_size=2)
+            
+        self.cameras_status = self.get_camera_Status() # Get camera status
 
     def capture_cb(self, data):
         """ Callback function to update data capture class
@@ -95,37 +98,31 @@ class DataCapture(Debugger):
         else: 
             self.debugger(DEBUG_LEVEL_0, "Data recording {} stopped".format(self.capture_id), log_type = 'info')
             self.capture_id += 1 # Increment capture identifier
-                
+
+    def get_camera_Status(self):
+        cameras_status_str = self.camera_status_service().cameras_status
+        return [bool(cam_status) for cam_status in cameras_status_str]
+
 # =============================================================================
-def write_images(images, dest, quality, multiple_images=False, img_format="jpg"):
-    """ saves a list of images in destination folder
+# TODO: Documentate
+def write_images(images, dest, cam_label, quality=80, img_format="jpg"):
+    """ 
     Args:
-        images: `list` list of images to write in memory
-        dest: `string` absolute path where images will be saved
-        quality: `int` [%] percentage of quality to save images
     Returns:
-        timestamp: `time` current time
-        name_l: `string` saved image file of left camera
-        name_c: `string` saved image file of center camera
-        name_r: `string` saved image file of right camera
     """
 
-    timestamp = int(time.time()*1000)
-    prefix = binascii.b2a_hex(os.urandom(2))
-    
-    name_l = '{}-{}_{}.{}'.format(prefix, timestamp, "l", img_format)
-    name_c = '{}-{}_{}.{}'.format(prefix, timestamp, "c", img_format)
-    name_r = '{}-{}_{}.{}'.format(prefix, timestamp, "r", img_format)
+    timestamp = int(time.time()*1000) # Get current time in timestamp format
+    prefix = binascii.b2a_hex(os.urandom(2)) # Get a marihunero prefix
+    cam_file_names = []
 
-    if multiple_images:
-        cv2.imwrite(os.path.join(dest, name_l), images[0], [cv2.IMWRITE_JPEG_QUALITY, quality])
-        cv2.imwrite(os.path.join(dest, name_c), images[1], [cv2.IMWRITE_JPEG_QUALITY, quality])
-        cv2.imwrite(os.path.join(dest, name_r), images[2], [cv2.IMWRITE_JPEG_QUALITY, quality])
-    else:
-        cv2.imwrite(os.path.join(dest, name_c), images[0][0], [cv2.IMWRITE_JPEG_QUALITY, quality])
+    for img, cam_label in zip(images, cam_label):
+        file_name = '{}-{}_{}.{}'.format(prefix, timestamp, cam_label, img_format)
+        cv2.imwrite(os.path.join(dest, file_name), img, [cv2.IMWRITE_JPEG_QUALITY, quality])
+        cam_file_names.append(file_name)
 
-    return timestamp, name_l, name_c, name_r
+    return timestamp, cam_file_names
 
+# TODO: CHECK
 def check_usb(msg, bot_data, main_debugger, dest, device):
     """ Reads from disk available space in usb and number of images recorded 
         msg, bot, main_debugger -> objects passed by reference dest is actual 
@@ -318,7 +315,7 @@ def main():
         main_debugger.debugger(DEBUG_LEVEL_0, "Waiting for cameras status response", log_type='info')
         rospy.wait_for_service('video_mapping/cameras_status', 3.0*len(cam_labels))
     except (rospy.ServiceException, rospy.ROSException), e:
-        main_debugger.debugger(DEBUG_LEVEL_0, "Did not get cameras response", log_type='err')
+        main_debugger.debugger(DEBUG_LEVEL_0, "Did not get cameras response status", log_type='err')
         return 1
     main_debugger.debugger(DEBUG_LEVEL_0, "Got camera status service", log_type='info')
 
@@ -328,83 +325,21 @@ def main():
     # Init ros node cycle
     while not rospy.is_shutdown():
 
-        # images = [video_map.read(cam_label) for cam_label in cam_labels.keys()]
-  
-        # # If data capture then do
-        # if MotionTestTrack.recording and base_path is not None: 
-        #     pass
-        #     if first_time: start_time = time.time() # Get time if first iteration
-        #     start_time_local = time.time() # Get local start time
-        #     i = 0; is_same_image = True 
+        # If data capture then do
+        if MotionTestTrack.recording and base_path is not None: 
             
-        #     while is_same_image:
-        #         if i >= 1000: #more than one sec and same image, 
-        #             main_debugger.debugger(DEBUG_LEVEL_1, 
-        #             "Could not grab a valid frame in more than 1 sec", 
-        #             log_type = 'warn')
-        #             break
-        #         images = []
-        #         if bot_data_capture.is_sim: # If environment is simulated
-        #             if(bot_data_capture.multiple_cameras): 
-        #                 images.append(bot_data_capture.left_image)
-        #                 images.append(bot_data_capture.center_image)
-        #                 images.append(bot_data_capture.right_image)
-        #             else:
-        #                 images.append([bot_data_capture.center_image])
-        #             images = np.array(images, dtype=np.uint8)
-        #         else: 
-        #             images = capture_images_memory(video_map)
+            # Write images in destination
+            timestamp, cam_file_names = write_images(
+                images=[video_map.read(cam_label) for cam_label in cam_labels.keys()], 
+                dest=sub_folder_path, quality=MotionTestTrack.quality, cam_label=cam_labels.keys())
                 
-        #         # Check if current capture change
-        #         is_same_image = np.array_equal(c_image_old, images[0]) if (bot_data_capture.is_sim and 
-        #             not bot_data_capture.multiple_cameras) else np.array_equal(c_image_old, images[1])
-        #         if not is_same_image: 
-        #             c_image_old = np.array(images[0], dtype=np.uint8).copy() if(bot_data_capture.is_sim and 
-        #                 not bot_data_capture.multiple_cameras) else images[1].copy()
-        #         time.sleep(0.001); i +=1 # Wait and increment capture time index
+            # Structure: 'capture_id', 'timestamp', 'camera_label', 'image_file'
+            rows = [[MotionTestTrack.capture_id, timestamp, cam_label, file_name
+                ] for cam_label, file_name in zip(cam_labels.keys(), cam_file_names)]
 
-        #     if not is_same_image and bot_data_capture.throttle > 0.0:
-        #     # if not is_same_image:
-
-        #         # Show captured images to record
-        #         # for idx, img in enumerate(images):
-        #         #     cv2.imshow("test_data_capture_{}".format(idx), img); cv2.waitKey(10)
-                
-        #         # Write images in destination
-        #         bot_data_capture.images = images
-        #         timestamp, name_l, name_c, name_r = write_images(
-        #             images=bot_data_capture.images, 
-        #             dest=sub_folder_path, 
-        #             quality=bot_data_capture.quality,
-        #             multiple_images=bot_data_capture.multiple_cameras)
-        #         names = [name_l, name_c, name_r]
-
-        #         # Structure: 'capture', 'timestamp','camera','filename', 'steering
-        #         rows = [[bot_data_capture.capture_id, timestamp, cam_label, file_name, 
-        #             bot_data_capture.steering_angle] for file_name, cam_label in zip([name_l, 
-        #             name_c, name_r], ["L", "C", "R"])]
-
-        #         # Write data and variables in csv file
-        #         with open(bot_data_capture.csv_file, 'a') as fd:
-        #             writer = csv.writer(fd); writer.writerows(rows)
-
-        #         first_time = False; msg.recording = True
-
-        #         # Update frame rate
-        #         bot_data_capture.fps = 1.0/(time.time()-start_time)
-        #         fps = 1.0/(time.time()-start_time_local)
-
-        #         # If time left for next capture then wait
-        #         start_time = time.time()
-        #         time2sleep = 1.0/bot_data_capture.desired_fps - 1.0/fps - 1.0/rate
-        #         main_debugger.debugger(DEBUG_LEVEL_3, "Capture FPS: {}, time2sleep: {}".format(
-        #             bot_data_capture.fps, time2sleep), log_type='info')
-        #         if time2sleep >= 0:
-        #             time.sleep(time2sleep)
-
-        # else:
-        #     msg.recording = False; first_time = True
-        #     bot_data_capture.fps = 0; time.sleep(0.1)
+            # Write data and variables in csv file
+            with open(MotionTestTrack.csv_file, 'a') as fd:
+                writer = csv.writer(fd); writer.writerows(rows)
 
         r.sleep()
 

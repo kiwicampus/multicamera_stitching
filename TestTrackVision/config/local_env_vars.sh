@@ -11,4 +11,4 @@ export DATA_CAPTURE_FPS=15 # Desired frame rate for data capture
 export IMG_QUALITY=80 # (0-100) Quality of images recorded
 
 # General Enviorement variables
-export LOCAL_RUN=0 # Enable(1)/Disable(0) local run
+export LOCAL_RUN=1 # Enable(1)/Disable(0) local run

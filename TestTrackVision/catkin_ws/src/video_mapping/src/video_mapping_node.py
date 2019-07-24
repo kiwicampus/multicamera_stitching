@@ -12,6 +12,8 @@ from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBU
 from easy_memmap import MultiImagesMemmap, EasyMemmap
 from utils.cameras import CamerasSupervisor
 
+from std_msgs.msg import Bool
+
 # =============================================================================
 def setProcessName(name):
     if sys.platform in ['linux2', 'linux']:
@@ -62,10 +64,14 @@ def main():
             for idx, img in enumerate(images):
                 cv2.imshow("CAM{}".format(cam_labels[idx]), img)
             key = cv2.waitKey(10)
-            if   key==113: # (Q) If press q then quit
+            if   key==113: # (Q) If press then quit/restrat node
                 exit()
+            elif key==100: # (D) If pressed start/Stop data capture
+                local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
+                local_data_capture_pub.publish(True)
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
+            
         # ---------------------------------------------------------------------
 
 # =============================================================================
