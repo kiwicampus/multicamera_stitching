@@ -16,10 +16,8 @@ import os
 import subprocess
 import binascii
 import datetime
-import ntplib
 import rospy
 import time
-import yaml
 import cv2
 
 from extended_rospylogs import Debugger, update_debuggers, loginfo_cond, logerr_cond
@@ -57,8 +55,6 @@ class DataCapture(Debugger):
         self.capture_id = 0 # Current data capture identifier for the csv file
         self.images = [] # List of images to write
         self.recording = False # Enable/Disable data recording
-        self.desired_fps = int(os.getenv(key='DATA_CAPTURE_FPS', default=15))
-        self.fps = 0. # Frame rate to capture data
         self.space_left = 100. # Space lef in usb device
         
         # Camera status service to check state of cameras 
@@ -122,40 +118,6 @@ def write_images(images, dest, cam_label, quality=80, img_format="jpg"):
 
     return timestamp, cam_file_names
 
-# TODO: CHECK
-def check_usb(msg, bot_data, main_debugger, dest, device):
-    """ Reads from disk available space in usb and number of images recorded 
-        msg, bot, main_debugger -> objects passed by reference dest is actual 
-        folder from today for recording device is where the usb is mounted
-    Args:
-        msg: `string` debugger message
-        bot: `DataCapture` data capture variable
-        main_debugger: `Debugger` debugger to report messages
-        dest: `string` absolute path to destination folder
-        device: `type` absolute path to mounted device
-    Returns:
-    """
-
-    msg.number_images = get_number_files(dest)
-    msg.space_left = space_left(device_path=device, percentage = True)
-    bot_data.space_left = msg.space_left
-
-    if (msg.number_images == -1 
-        or msg.space_left == -1 
-        or msg.space_left <= float(os.getenv('MIN_USB_SPACE', 3))):
-        bot_data.csv_file = None
-        bot_data.recording = False
-    
-    if bot_data.csv_file is None:
-        try:
-            csv_file, log_msg = create_folder_csv_4data_capture(dest)
-        except Exception as e:
-            csv_file, log_msg = None, "USB may have been disconnected"
-    
-    main_debugger.debugger(DEBUG_LEVEL_1, 
-        'Reading Usb Space: {}% empty; Captured images: {}'.format(
-        msg.space_left, msg.number_images))
-
 def space_left(device_path, percentage=True):
     """ calculates left space in device
     Args:
@@ -177,21 +139,6 @@ def space_left(device_path, percentage=True):
         return totalAvailSpace/totalBytes * 100.
     else:
         return totalAvailSpace / 1024. / 1024. / 1024.
-
-def get_number_files(folder):
-    """ calculates amount of files in folder
-    Args:
-        folder: `string` absolute path 
-    Returns:
-        _: `int`  amount of files in folder
-    """
-    if folder is None: return 0
-    try:
-        return (len([name for name in os.listdir(folder) if os.path.isfile(os.path.join(folder, name))]) - 1)
-    except Exception as e:
-        logerr_cond(True, "Error reading USB {}".format(e))
-        print("[ERROR] - Error reading USB {}".format(e))
-        return -1
 
 def create_folder_csv_4data_capture(dest_folder):
     """ creates data.csv headers if it not exists and Creates folder for 
