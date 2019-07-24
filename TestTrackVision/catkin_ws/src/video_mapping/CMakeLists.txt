@@ -123,6 +123,7 @@ DEPENDS message_runtime
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ./src
+  ./src/utils
 )
 
 ## Declare a C++ library

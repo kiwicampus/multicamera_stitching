@@ -1,4 +1,3 @@
-adquisition_module/catkin_ws/build
-adquisition_module/catkin_ws/devel
-adquisition_module/catkin_ws/src/video_mapping/utils/configs/cam_ports.yaml
-*.pyc
+TestTrackVision/catkin_ws/build
+TestTrackVision/catkin_ws/devel
+TestTrackVision/config/cam_ports.yaml

@@ -1,0 +1,40 @@
+#!/bin/bash
+# /etc/init.d/MotionTestTrack
+
+### BEGIN INIT INFO
+# Provides:          MotionTestTrack
+# Required-Start:    $syslog
+# Required-Stop:     $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Script to start a MotionTestTrack at init
+# Description:       Script to start MotionTestTrack at boot time
+### END INIT INFO
+
+# If you want a command to always run, put it here
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    echo  "Starting MotionTestTrack Vision System"
+      # run application you want to start
+      source /opt/ros/kinetic/setup.bash
+      source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/catkin_ws/devel/setup.bash
+      source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/config/local_env_vars.sh
+      roslaunch /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/config/MotionTestTrack.launch
+    ;;
+  stop)
+    echo "Stopping MotionTestTrack Vision System"
+    # kill application you want to stop
+    source /opt/ros/kinetic/setup.bash
+    for i in $( rosnode list ); do
+    rosnode kill $i;
+    done
+    killall roscore
+    ;;
+  *)
+    echo "Usage: /etc/init.d/MotionTestTrack {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

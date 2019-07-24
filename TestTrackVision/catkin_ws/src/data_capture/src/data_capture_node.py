@@ -3,9 +3,8 @@
 """
 Code Information:
     Programmer: Eng. John Alberto Betancourt G
-	Phone: +57 (350) 283 51 22
 	Mail: john@kiwicampus.com
-	Kiwi Campus / Computer Vision Team
+	Kiwi Campus, Computer Vision & Ai Team
 """
 
 # =============================================================================
@@ -15,27 +14,27 @@ import sys
 import csv
 import os
 
-from glob import glob
 import ntplib
 import rospy
 import cv2
 import yaml
+import subprocess
+import binascii
+
+import datetime
+from glob import glob
 
 from extended_rospylogs import Debugger, update_debuggers, loginfo_cond, logerr_cond
 from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBUG_LEVEL_3, DEBUG_LEVEL_4
 
-from std_msgs.msg import String
-from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
-
 from video_mapping.srv import GetMoreCameraStatus
 from data_capture.msg import Status
 
-import subprocess
-import binascii
-
 from easy_memmap import MultiImagesMemmap
 from threading import Timer
+
+from video_mapping.utils.cameras import read_cam_ports
 
 # =============================================================================
 class DataCapture(Debugger):
@@ -48,6 +47,7 @@ class DataCapture(Debugger):
         Returns:
         """
 
+        # inherit from other classes
         super(DataCapture, self).__init__()
 
         self.csv_file = csv_file # csv absolute path to save images
@@ -68,70 +68,41 @@ class DataCapture(Debugger):
         rospy.Subscriber(name="cumbia_rover/data_capture/capture", data_class=Bool, 
             callback=self.capture_cb, queue_size=2)
 
-        # See if usb is right mounted and with space left
-        self.space_left = space_left(device_path=self.dest_folder, percentage=True)
+        # check if usb is right mounted and with space left
+        self.space_left = 100.
 
     def capture_cb(self, data):
-        """ Callback function - updates bot's capture state
+        """ Callback function to update data capture class
         Args:
             data: `Bool` data from message
         Returns:
         """
 
-        if data.data:
-            self.debugger(DEBUG_LEVEL_2, "Received Capture Toggle: Desired state: {}".format(not self.recording))
-            labels = ["L","C", "R"]
-            if self.is_sim:
-                status = ["OK", "OK", "OK"]
-            else:
-                #will get boolean with corresponding to ["L", "C", "R"]
-                status = self.camera_status_service().camera_status 
+        # check if usb is right mounted and with space left
+        self.space_left = space_left(device_path=self.dest_folder, percentage=True)
+
+        # -----------------------------------------------------------------
+        # Check possible error cases
+        # 1 - Check for space in storing device
+        if self.space_left <= float(os.getenv('MIN_USB_SPACE', 3)):
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB FULL", log_type = 'warn')
+        
+        # 2 - Check if the usb device is connected
+        elif self.dest_folder is None:
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB is not mounted", log_type = 'warn')
+
+        # 3 - Check if there's no csv file
+        elif self.csv_file is None:
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, some problems with the USB", log_type = 'warn')
+ 
+        # -----------------------------------------------------------------
+        self.recording = not self.recording
+        if self.recording: 
+            self.debugger(DEBUG_LEVEL_0, "Data recording {} started".format(self.capture_id), log_type = 'info')
+        else: 
+            self.debugger(DEBUG_LEVEL_0, "data recording {} stopped".format(self.capture_id), log_type = 'info')
+            self.capture_id += 1 # Increment capture identifier
                 
-            # Check the status of all cameras before start capturing data
-            erro_camera_labels = []
-            for idx, _ in enumerate(status):
-                if status[idx] != "OK":
-                    erro_camera_labels.append(labels[idx])
-            
-            # -----------------------------------------------------------------
-            self.space_left = space_left(device_path=self.dest_folder, percentage=True)
-
-            # -----------------------------------------------------------------
-            # Check possible error cases
-            log_str = None
-            # 1 - Check for space in storing device
-            if self.space_left <= float(os.getenv('MIN_USB_SPACE', 3)):
-                log_str = "Can't record video, USB FULL"
-            
-            # 2 - Check if the usb device is connected
-            elif self.dest_folder is None:
-                log_str = "Can't record video, USB is not mounted!"
-
-            # 3 - Cameras disconnected or not found
-            # elif len(erro_camera_labels):
-            #     log_str = "Can't record video, cameras: {} Not found".format(", ".join(erro_camera_labels))
-
-            # 4 - Check if there's no csv file
-            elif self.csv_file is None:
-                log_str = "Can't record video, some problems with the USB"
-
-            # -----------------------------------------------------------------
-            if log_str is not None:
-                self.notify_message(log_str=log_str, log_type='err')
-                self.recording = False
-            else:
-                self.recording = not self.recording
-                if self.recording: 
-                    self.init_subscribers() # init pub/sub to catch data from robot
-                    self.notify_message(log_str="data recording {} started".format(self.capture_id), 
-                        log_type='info')
-                else: 
-                    # if stops recording, unsubscribe to save CPU usage
-                    self.unregister_subscribers() # unregister subscribers
-                    self.notify_message(log_str="data recording {} stopped".format(self.capture_id), 
-                        log_type='info')
-                    self.capture_id += 1 # Increment capture identifier
-                    
 # =============================================================================
 def write_images(images, dest, quality, multiple_images=False, img_format="jpg"):
     """ saves a list of images in destination folder
@@ -161,7 +132,6 @@ def write_images(images, dest, quality, multiple_images=False, img_format="jpg")
         cv2.imwrite(os.path.join(dest, name_c), images[0][0], [cv2.IMWRITE_JPEG_QUALITY, quality])
 
     return timestamp, name_l, name_c, name_r
-
 
 def check_usb(msg, bot_data, main_debugger, dest, device):
     """ Reads from disk available space in usb and number of images recorded 
@@ -195,28 +165,6 @@ def check_usb(msg, bot_data, main_debugger, dest, device):
     main_debugger.debugger(DEBUG_LEVEL_1, 
         'Reading Usb Space: {}% empty; Captured images: {}'.format(
         msg.space_left, msg.number_images))
-
-def create_status_msg(size=(480,640), quality=80, device="/media", 
-    images_folder=None):
-    """ creates message type to report status 
-    Args:
-        size: `tuple` size of images to write/save
-        quality: `int` [0-100] quality to save images
-        device: `string` absolute path of device to save/write images
-        images_folder: `string` folder to save/write images
-    Returns:
-        msg: `Status` message type to report status
-    """
-
-    msg = Status()
-    msg.quality = quality
-    msg.resolution = str(size[0])+"x"+str(size[1])
-    msg.space_left = space_left(device_path=device, percentage=True)
-    msg.fps = 0
-    msg.recording = False
-    if images_folder is not None:
-        msg.number_images = get_number_files(images_folder)
-    return msg
 
 def space_left(device_path, percentage=True):
     """ calculates left space in device
@@ -254,54 +202,6 @@ def get_number_files(folder):
         logerr_cond(True, "Error reading USB {}".format(e))
         print("[ERROR] - Error reading USB {}".format(e))
         return -1
-
-def get_current_date_str(format_str="%m-%d-%y"):
-    """ gets date from remote server if possible
-    Args:
-        format_str: `string` format to get current date 
-    Returns:
-    """
-    
-    for _ in range(5):
-        try:
-            client = ntplib.NTPClient()
-            response = client.request('pool.ntp.org')
-            return time.strftime(format_str,time.localtime(response.tx_time))
-        except:
-            print('[WARNING]: Could not sync with time server... Retrying!')
-            time.sleep(2)
-    print('[ERROR]: Could not sync with time server. Using local time')
-    return time.strftime(format_str)
-
-# =============================================================================
-def capture_images_memory(video_map, cam_labels):
-    """ reads the images of camera L, C, and R from memory using memmap variable
-    Args:
-        video_map: `MultiImagesMemmap` memmap variable where images are located in memory
-    Returns:
-        _: `list` list with images loaded from memmap
-    """
-
-    return [video_map.read(cam_label) for cam_label in cam_labels]
-
-def read_cam_ports(file_path):
-    """ Reads the camera labels and port from file
-    Args:
-        file_path: `string` absolute path to camera labels and port file
-    Returns:
-        _: `dictionary` key: camera labels, values: camera ports
-    """
-
-    abs_path = os.path.join(os.path.dirname(__file__), file_path)
-    if os.path.isfile(abs_path):
-        with open(abs_path, 'r') as stream:
-            data_loaded = yaml.safe_load(stream)
-            return data_loaded
-    else:
-        default_ports = {'CAM1': '1.0.0'}
-        with io.open(abs_path, 'w', encoding='utf8') as outfile:
-            yaml.dump(default_ports, outfile, default_flow_style=False, allow_unicode=True)
-        return default_ports
 
 def create_folder_csv_4data_capture(dest_folder):
     """ creates data.csv headers if it not exists and Creates folder for 
@@ -375,11 +275,11 @@ def main():
     rospy.set_param('/data_capture/debug', 0)
     setProcessName("data_capture_node")
 
-    rate = 15 #args.rate
+    rate = 30 #args.rate
     r = rospy.Rate(hz=rate) # Set ros node rate
 
     # Get current date
-    date = get_current_date_str("%m-%d-%y") 
+    date = datetime.date.today().strftime("%m-%d-%y")
 
     # Get base path
     base_path = None; device = None; sub_folder_path = "data"
@@ -420,17 +320,16 @@ def main():
 
     MotionTestTrack = DataCapture(csv_file=csv_file, dest_folder=base_path)
 
-    cam_labels=read_cam_ports("/home/kiwivision/Documents/multicamera_stitching/adquisition_module/catkin_ws/src/video_mapping/utils/configs/cam_ports.yaml")
-
+    cam_labels=read_cam_ports(os.environ.get("CAM_PORTS_PATH"))
 
     # Init ros node cycle
     while not rospy.is_shutdown():
 
-        images = capture_images_memory(video_map=video_map, cam_labels=cam_labels.keys())
+        # images = [video_map.read(cam_label) for cam_label in cam_labels.keys()]
   
-        # If data capture then do
-        if MotionTestTrack.recording and base_path is not None: 
-            pass
+        # # If data capture then do
+        # if MotionTestTrack.recording and base_path is not None: 
+        #     pass
         #     if first_time: start_time = time.time() # Get time if first iteration
         #     start_time_local = time.time() # Get local start time
         #     i = 0; is_same_image = True 
