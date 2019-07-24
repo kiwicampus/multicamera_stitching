@@ -1,6 +1,0 @@
-<launch>
- <node pkg="video_mapping" name="video_mapping" type="video_mapping_node.py" respawn="true" output="screen"/>
- <!-- <group if="$(env DATA_CAPTURE)">
-    <node pkg="data_capture" name="data_capture" type="data_capture_node.py" respawn="true" output="screen"/>
- </group> -->
-</launch>

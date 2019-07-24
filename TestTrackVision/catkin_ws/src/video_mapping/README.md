@@ -9,8 +9,8 @@
 
 This node is in charge of:
 
-* Opening and reading the video stream of each of the 3 cameras connected through the USB hub. Also handling errors of video stream readings.
-* Using the 3 instant images from the video streams to map them into memory as a huge 3D array (see detailed description for this).
+* Opening and reading the video stream of each camera connected through the USB hub and specified in the yaml file 'cam_ports'. Also handling errors of video stream readings.
+* Using the N camera instant images from the video streams to map them into memory as a huge 3D array (see detailed description for this).
 
 ## **Topics/Services/Parameters/Env_vars**
 
@@ -18,7 +18,7 @@ This section describes the topics that the node uses and for what purpose.
 
 ### **Subscribers**
 
-The node is subscribed to the following topics (physical descriptions are taken from the perspective of the rover):
+The node is subscribed to the following topics:
 
 ### **Publishers**     
 
@@ -31,7 +31,7 @@ The node exposes the following services:
  * /video_mapping/get_cameras_status_verbose
     * It checks the status of each of the camera connected to the robot and gives verbose status info
     * Doesn't receive any input param.
-    * Returns a string array indicating a detailed status of the camera. The order is "LL", "C", "RR"
+    * Returns a string array indicating a detailed status of the cameras.
 
 ### **Parameters**
 
@@ -41,17 +41,24 @@ This node doesn't use any specific parameters
 
 The node uses these environment variables:
 
-* DATA_CAPTURE: int, default: 0.
-    * It enables to open the stream of cameras "L" and "R" for possible recording. It is so because when cameras are On, they consume extra ~350mA.
-
  * MEMMAP_PATH: string, default: "/tmp"
     * Refers to the path that the library `easy_memmap` is going to use for handling the memory mapped video arrays.
+
+ * CAM_PORTS_PATH: string, default: "$PWD/cam_ports.yaml"
+    * Absolute path to camera ports file. Here the camera labels and ports are defined
+
+ * VIDEO_WIDTH: string, default: 640
+    * Video cameras streaming height
+
+ * VIDEO_HEIGHT: string, default: 360
+    * Video cameras streaming width
+
 
 ## **Technical/Implementation details**
 
 ### **Threads usage**
 
-The main process spawns 3 different threads (one per camera) to read continuously the cameras stream. These threads are in the same context of the parent process, so this one can access their variables, i.e. the variables where the images are stored of the camera are stored. 
+The main process spawns N(Cameras) different threads (one per camera) to read continuously the cameras stream. These threads are in the same context of the parent process, so this one can access their variables, i.e. the variables where the images are stored of the camera are stored. 
 
 ### **Mapping into memory**
 
@@ -68,12 +75,12 @@ The main library used to handle the memory mapping is [easy_memmap](https://gith
 
 #### **easy_memmap**
 
-This module exposes a class named `MultiImagesMemmap` that assumes the use of RGB image arrays, and each of them can be identified with a label. In our case, we use the following convention for naming: "LL", "C", "RR", that correspond to left camera, the center camera, and the right camera. The big 3D array that has all BGR images concatenated need to be also in the same order of the label array.
+This module exposes a class named `MultiImagesMemmap` that assumes the use of RGB image arrays, and each of them can be identified with a label. In our case, we use the following convention for naming: "CAM1", "CAM2"... "CAMN", that correspond to cameras from left to the right camera. The big 3D array that has all BGR images concatenated need to be also in the same order of the label array.
 
 The constructor have the following signature (an example is provided):
 
 ```python
-video_map = MultiImagesMemmap(mode = "w", name = "main_stream", labels = ["LL", "C", "RR"], memmap_path = "/tmp)
+video_map = MultiImagesMemmap(mode = "w", name = "main_stream", labels = ["CAM1", "CAM2"... "CAMN"], memmap_path = "/tmp)
 ```
 where the `name` is a predefined name that identifies that memory mapped array. (In our case, "main_stream" is used for this memmap sharing)
 

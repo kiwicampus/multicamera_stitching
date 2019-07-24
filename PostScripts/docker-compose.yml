@@ -1,0 +1,24 @@
+version: '2.1'
+networks: {}
+volumes:
+  resin-data: {}
+  models: {}
+services:
+  main:
+    build:
+      context: .
+    privileged: true
+    restart: always
+    network_mode: host
+    volumes:
+      - 'resin-data:/data'
+      - 'models:/root/.local/tfinterface'
+    labels:
+      io.resin.features.kernel-modules: '1'
+      io.resin.features.firmware: '1'
+      io.resin.features.dbus: '1'
+      io.resin.features.supervisor-api: '1'
+      io.resin.features.resin-api: '1'
+      io.resin.update.strategy: download-then-kill
+      io.resin.update.handover-timeout: ''
+      io.balena.features.supervisor-api: '1'
