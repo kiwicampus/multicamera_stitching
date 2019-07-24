@@ -1,3 +1,4 @@
 TestTrackVision/catkin_ws/build
 TestTrackVision/catkin_ws/devel
 TestTrackVision/config/cam_ports.yaml
+*.pyc

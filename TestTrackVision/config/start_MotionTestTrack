@@ -17,6 +17,7 @@ case "$1" in
   start)
     echo  "Starting MotionTestTrack Vision System"
       # run application you want to start
+      export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/catkin_ws/src/video_mapping/src/utils"
       source /opt/ros/kinetic/setup.bash
       source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/catkin_ws/devel/setup.bash
       source /home/kiwivision/Documents/multicamera_stitching/TestTrackVision/config/local_env_vars.sh

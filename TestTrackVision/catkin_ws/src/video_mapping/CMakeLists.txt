@@ -49,13 +49,12 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
-   Status.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
  FILES
- GetMoreCameraStatus.srv
+ CamerasStatus.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -123,7 +122,6 @@ DEPENDS message_runtime
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ./src
-  ./src/utils
 )
 
 ## Declare a C++ library

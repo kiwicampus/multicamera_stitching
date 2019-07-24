@@ -9,32 +9,28 @@ Code Information:
 
 # =============================================================================
 import numpy as np
-import time
 import sys
 import csv
 import os
 
-import ntplib
-import rospy
-import cv2
-import yaml
 import subprocess
 import binascii
-
 import datetime
-from glob import glob
+import ntplib
+import rospy
+import time
+import yaml
+import cv2
 
 from extended_rospylogs import Debugger, update_debuggers, loginfo_cond, logerr_cond
 from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBUG_LEVEL_3, DEBUG_LEVEL_4
 
+from video_mapping.srv import CamerasStatus
 from std_msgs.msg import Bool
-from video_mapping.srv import GetMoreCameraStatus
-from data_capture.msg import Status
 
 from easy_memmap import MultiImagesMemmap
-from threading import Timer
-
-from video_mapping.utils.cameras import read_cam_ports
+from cameras import read_cam_ports
+from glob import glob
 
 # =============================================================================
 class DataCapture(Debugger):
@@ -58,18 +54,15 @@ class DataCapture(Debugger):
         self.recording = False # Enable/Disable data recording
         self.desired_fps = int(os.getenv(key='DATA_CAPTURE_FPS', default=15))
         self.fps = 0. # Frame rate to capture data
-        
-        # TODO: Camera status service to check state of cameras 
-        # self.camera_status_service = rospy.ServiceProxy(
-        #     name='video_mapping/get_cameras_status_verbose', 
-        #     service_class=GetMoreCameraStatus)
+        self.space_left = 100. # Space lef in usb device
+
+        # Camera status service to check state of cameras 
+        self.camera_status_service = rospy.ServiceProxy(
+            name='video_mapping/cameras_status', service_class=CamerasStatus)
 
         # Subscriber to enable/disable data capturing
         rospy.Subscriber(name="cumbia_rover/data_capture/capture", data_class=Bool, 
             callback=self.capture_cb, queue_size=2)
-
-        # check if usb is right mounted and with space left
-        self.space_left = 100.
 
     def capture_cb(self, data):
         """ Callback function to update data capture class
@@ -100,7 +93,7 @@ class DataCapture(Debugger):
         if self.recording: 
             self.debugger(DEBUG_LEVEL_0, "Data recording {} started".format(self.capture_id), log_type = 'info')
         else: 
-            self.debugger(DEBUG_LEVEL_0, "data recording {} stopped".format(self.capture_id), log_type = 'info')
+            self.debugger(DEBUG_LEVEL_0, "Data recording {} stopped".format(self.capture_id), log_type = 'info')
             self.capture_id += 1 # Increment capture identifier
                 
 # =============================================================================
@@ -318,9 +311,19 @@ def main():
     video_map.wait_until_available() #initialize and find video data
     main_debugger.debugger(DEBUG_LEVEL_0, "Memmap video data ready!", log_type='info')
 
-    MotionTestTrack = DataCapture(csv_file=csv_file, dest_folder=base_path)
-
+    # Get cameras label and ports
     cam_labels=read_cam_ports(os.environ.get("CAM_PORTS_PATH"))
+
+    try: # Wait for cameras status response
+        main_debugger.debugger(DEBUG_LEVEL_0, "Waiting for cameras status response", log_type='info')
+        rospy.wait_for_service('video_mapping/cameras_status', 3.0*len(cam_labels))
+    except (rospy.ServiceException, rospy.ROSException), e:
+        main_debugger.debugger(DEBUG_LEVEL_0, "Did not get cameras response", log_type='err')
+        return 1
+    main_debugger.debugger(DEBUG_LEVEL_0, "Got camera status service", log_type='info')
+
+    # Create object for data capture
+    MotionTestTrack = DataCapture(csv_file=csv_file, dest_folder=base_path)
 
     # Init ros node cycle
     while not rospy.is_shutdown():

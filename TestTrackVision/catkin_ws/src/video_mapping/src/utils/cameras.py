@@ -27,8 +27,8 @@ from threading import Thread, Event
 from extended_rospylogs import Debugger, update_debuggers, loginfo_cond, logerr_cond
 from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBUG_LEVEL_3, DEBUG_LEVEL_4
 
-from video_mapping.srv import GetMoreCameraStatus
-from video_mapping.srv import GetMoreCameraStatusResponse
+from video_mapping.srv import CamerasStatus
+from video_mapping.srv import CamerasStatusResponse
 
 # =============================================================================
 def read_cam_ports(file_path):
@@ -314,12 +314,12 @@ class CamerasSupervisorBase(Debugger):
         self.debugger(DEBUG_LEVEL_0, "Shape of video mapping array: {}X{}X{}".format(
             self.video_height, self.video_width, 3*self.cameras_status.count(True)))
 
-        # TODO: Create services to report cameras status
-        # rospy.Service('video_mapping/get_cameras_status_verbose', GetMoreCameraStatus, self.get_cameras_status_verbose)
+        # Create services to report cameras status
+        rospy.Service('video_mapping/cameras_status', CamerasStatus, self.get_cameras_status_verbose)
 
     def get_cameras_status_verbose(self, data):
-        self.cameras_status, debug_str = self.check_cameras(self.camera_handlers, self.cameras_labels, stdout=False)
-        return GetMoreCameraStatusResponse(debug_str)
+        msg = ["1" if cam_status else "0" for cam_status in self.cameras_status]
+        return CamerasStatusResponse("".join(msg))
 
 class CamerasSupervisor(CamerasSupervisorBase, Debugger):
 
