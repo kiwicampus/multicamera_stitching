@@ -100,12 +100,13 @@ def main():
                     pass
 
             cv2.imshow("Local_visualizer", img); key = cv2.waitKey(10)
-            if   key==173: # (-) If pressed go to previous camera
+            if   key==173 or key==110: # (-) If pressed go to previous camera
                 if local_cam_idx!=0: local_cam_idx-=1
-            elif key==171: # (+) If pressed go to next camera
+            elif key==171 or key==98: # (+) If pressed go to next camera
                 if local_cam_idx<len(images)-1: local_cam_idx+=1
             elif key==115: # (S) If pressed save image current capture
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
+                if not os.path.isdir(re_path): os.mkdir(re_path)
                 abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
                 while os.path.isfile(abs_path):
                     pic_idx+=1
