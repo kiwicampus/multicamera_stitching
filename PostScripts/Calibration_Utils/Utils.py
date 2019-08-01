@@ -20,7 +20,7 @@ import cv2
 import sys
 
 # =============================================================================
-def get_projection_point_dst(coords_src, M):
+def get_projection_point_dst(pt_src, M):
     """  Gets the coordinate equivalent in surface projection space from original 
          view space 
     Args:
@@ -30,11 +30,11 @@ def get_projection_point_dst(coords_src, M):
         coords_src: `numpy.darray`  projected coordinate in original view space
     """
 
-    coords_dst = np.matmul(M, coords_src)
-    coords_dst = coords_dst / coords_dst[2]
-    coords_dst = [int(coords_dst[0]), int(coords_dst[1])]
+    pt_dst = np.matmul(M, pt_src)
+    pt_dst = pt_dst / pt_dst[2]
+    pt_dst = [int(pt_dst[0]), int(pt_dst[1])]
 
-    return coords_dst
+    return pt_dst
 
 def get_projection_point_src(coords_dst, INVM):
     """  Gets the coordinate equivalent in original view space from surface 

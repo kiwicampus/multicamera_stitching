@@ -19,6 +19,9 @@ from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBU
 import numpy as np
 import cv2
 
+from Utils import get_projection_point_dst
+from Utils import get_projection_point_src
+
 # =============================================================================
 def is_cv3(or_better=False):
 	# grab the OpenCV major version number
@@ -41,50 +44,109 @@ def get_opencv_major_version(lib=None):
 
 # =============================================================================
 class Stitcher(Debugger):
-	def __init__(self, images):
+
+	def __init__(self, images_dic):
 		
-		self.Stitchers=[]
-		
-		pass
+		self.img_labels=np.sort(images_dic.keys())
+		self.stitcher_labels=[]
+		for idx, _ in enumerate(self.img_labels[:-1]):
+			if idx==0:
+				self.stitcher_labels.append("({}&{})".format(
+					self.img_labels[idx], self.img_labels[idx+1]))
+			else:
+				self.stitcher_labels.append("({}&{})".format(
+					self.stitcher_labels[-1], self.img_labels[idx+1]))
+		self.stitchers=[StitcherBase(id=cam_label) for cam_label in self.stitcher_labels]
+			
+	def calibrate_stitcher(self, images_dic):
+
+		# check to see if we are using OpenCV 3.X contrib
+		if is_cv3(or_better=False):
+			try:
+				cv2.xfeatures2d.SIFT_create()
+			except:
+				self.debugger(DEBUG_LEVEL_0, "OpenCV is not a contrib version, check for the module xfeatures2d", log_type="err")
+				return
+
+		# Calibrate every stitcher with images list
+		for idx, _ in enumerate(self.img_labels[:-1]):
+			# print(self.img_labels[idx], self.img_labels[idx+1])
+			images=(images_dic[self.img_labels[idx]], images_dic[self.img_labels[idx+1]])
+			self.stitchers[idx].calibrate(images=images)
+			cv2.imshow("stitcher", self.stitchers[idx].stitch(images=images)) 
+
+		# Print status of stitchers
+		for stitcher in self.stitchers:
+			self.debugger(DEBUG_LEVEL_0, "[STITCHER]: {}".format(stitcher), 
+				log_type="err" if stitcher.status is None else "info")
 
 	def stitch(self):
-		pass
-
-	def calibrate_stitcher(self):
 		pass
 
 	def save_stitcher(self):
 		pass
 
 	def load_stitcher(self):
-		pass
 
+		for stitcher in self.stitchers:
+			self.debugger(DEBUG_LEVEL_0, "[STITCHER]: {}".format(stitcher), 
+				log_type="err" if stitcher.status is None else "info")
+
+ 	def __str__(self):
+		return ""
+		
 # =============================================================================
 class StitcherBase(Debugger):
-	def __init__(self):
 
-		self.cachedH = None
-		self.cachedINVH = None
-		self.matches = None
-		self.status = None
+	def __init__(self, id=None):
+
+		# Stitcher properties
+		self.cachedBH = None # Rotation/translation inverse matrix of image B
+		self.cachedBINVH = None # Rotation/translation inverse matrix of image B
+		self.Bpts= None # Conners of image B in stitcher result
+
+		self.cachedAH = None # Rotation/translation inverse matrix of image A
+		self.cachedAINVH = None # Rotation/translation inverse matrix of image A
+		self.Apts= None # Conners of image A in stitcher result
+	
+		self.matches = None # Matches point between image A and B
+		self.status = None # Status of matches between image A and B
+		self.id = id # Stitcher identifier
 		
+		self.ABSize=None # Size of stitcher result
+
 	def stitch(self, images):
 		
 		# unpack the images
 		(imageB, imageA) = images
- 
-		if self.cachedH is not None:
+
+		# If stitcher is calibrated
+		if self.cachedAH is not None:
 			# apply a perspective transform to stitch the images together
 			# using the cached homography matrix
-			dst_img = cv2.warpPerspective(src=imageA, M=self.cachedH,
-				dsize=(imageA.shape[1]+imageB.shape[1], imageA.shape[0]))
-			dst_img[0:imageB.shape[0], 0:imageB.shape[1]] = imageB
-		else:
+			dst_img = cv2.warpPerspective(src=imageA, M=self.cachedAH, dsize=self.ABSize)
+			Bx_offset = int(self.cachedBH[0][2]); By_offset = int(self.cachedBH[1][2])
+			dst_img[Bx_offset:Bx_offset+imageB.shape[0], 
+					By_offset:By_offset+imageB.shape[1]] = imageB
+			self.draw_descriptors(img_src=dst_img)
+		else: # Otherwise return images concatenated
 			dst_img=np.concatenate(images,axis=1)
 
 		# return the stitched image
 		return dst_img
 	
+	def reset(self):		
+		self.cachedBH = None # Rotation/translation inverse matrix of image B
+		self.cachedBINVH = None # Rotation/translation inverse matrix of image B
+		self.Bpts= None # Conners of image B in stitcher result
+		self.cachedAH = None # Rotation/translation inverse matrix of image A
+		self.cachedAINVH = None # Rotation/translation inverse matrix of image A
+		self.Apts= None # Conners of image A in stitcher result
+		self.matches = None # Matches point between image A and B
+		self.status = None # Status of matches between image A and B
+		self.id = id # Stitcher identifier
+		self.ABSize=None # Size of stitcher result
+
 	def calibrate(self, images, ratio=0.75, reprojThresh=4.0):
 		""" Finds a transposed correlation between images with key points 
 			correlated
@@ -92,6 +154,9 @@ class StitcherBase(Debugger):
 			images: `list` of cv2.math with images to calibrate stitcher
 		Returns:
 		"""
+
+		# Reset stitcher
+		self.reset()
 
 		# Unpack images
 		(imageB, imageA) = images
@@ -102,13 +167,42 @@ class StitcherBase(Debugger):
 		if kpsA is None or kpsB is None: return
 
 		# match features between the two images
-		self.cachedH, self.matches, self.status = self.matchKeypoints(kpsA=kpsA, 
+		self.cachedAH, self.matches, self.status = self.matchKeypoints(kpsA=kpsA, 
 			kpsB=kpsB, featuresA=featuresA, featuresB=featuresB, ratio=ratio, 
 			reprojThresh=reprojThresh)
-		if self.cachedH is not None:
-			self.cachedINVH= np.linalg.inv(self.cachedH)
 
-		self.debugger(DEBUG_LEVEL_0, "[STITCHER]: Calibrated", log_type="info")
+		# Calculates inverse and other components
+		if self.cachedAH is not None:
+			
+			# Calculate translation component
+			Apts=[get_projection_point_dst(pt_src=(pt[0], pt[1], 1), M=self.cachedAH) for pt in 
+				[(0, 0), (imageA.shape[1], 0), (imageA.shape[1], imageA.shape[0]), (0, imageA.shape[0])]]
+			
+			Ax_coords=[pt[0] for pt in Apts]
+			Ay_coords=[pt[1] for pt in Apts]
+
+			Ax_min_coord = min(Ax_coords) if min(Ax_coords)<0 else 0
+			Ay_min_coord = min(Ay_coords) if min(Ay_coords)<0 else 0
+
+			self.cachedBH = np.float32([
+				[1, 0, abs(Ax_min_coord)], # Translation in x axis
+				[0, 1, abs(Ay_min_coord)], # Translation in y axis
+				[0, 0, 1]]) # Translation in Z axis
+			self.cachedBINVH= np.linalg.inv(self.cachedBH) # Inverse
+
+			self.cachedAH[0][2]+=abs(Ax_min_coord) # Translation in x axis
+			self.cachedAH[1][2]+=abs(Ay_min_coord) # Translation in y axis
+			self.cachedAINVH= np.linalg.inv(self.cachedAH) # Inverse
+
+			self.ABSize=(
+				int(abs(max(Ax_coords)-min(Ax_coords))), # Stitcher result width
+				int(abs(max(Ay_coords)-min(Ay_coords)))) # Stitcher result height
+
+			self.Bpts=[get_projection_point_dst(pt_src=(pt[0], pt[1], 1), M=self.cachedBH) for pt in 
+				[(0, 0), (imageB.shape[1], 0), (imageB.shape[1], imageB.shape[0]), (0, imageB.shape[0])]]
+
+			self.Apts=[get_projection_point_dst(pt_src=(pt[0], pt[1], 1), M=self.cachedAH) for pt in 
+				[(0, 0), (imageA.shape[1], 0), (imageA.shape[1], imageA.shape[0]), (0, imageA.shape[0])]]
 
 	def detectAndDescribe(self, image):
 		""" Find key-points in image
@@ -204,5 +298,19 @@ class StitcherBase(Debugger):
 		# and status of each matched point
 		return H, matches, status
 
-	def draw_match_points(self):
-		pass
+	def draw_descriptors(self, img_src):
+		if self.Bpts is not None:
+			for pt in self.Bpts:
+				cv2.circle(img_src, tuple(pt), 2, (0, 0, 255), -1)
+				cv2.circle(img_src, tuple(pt), 3, (0, 255, 255), 1)
+		if self.Apts is not None:
+			for pt in self.Apts:
+				cv2.circle(img_src, tuple(pt), 2, (0, 0, 255), -1)
+				cv2.circle(img_src, tuple(pt), 3, (255, 255, 0), 1)
+
+
+ 	def __str__(self):
+		return "Stitcher:{}| matches:{}".format(
+			self.id, len(self.matches) if self.matches is not None else 0)
+
+# =============================================================================

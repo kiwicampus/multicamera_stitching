@@ -32,7 +32,7 @@ from Extrinsic import save_extrinsic_calibration
 from Extrinsic import load_extrinsic_calibration
 from Extrinsic import draw_extrinsic
 
-from StitcherClass import StitcherBase
+from StitcherClass import Stitcher
 
 # =============================================================================
 def setProcessName(name):
@@ -74,11 +74,14 @@ def main():
             int(os.environ.get("VIDEO_WIDTH", 640)), int(os.environ.get("VIDEO_HEIGHT", 360))))
     extrinsic_calibrations = {key:load_extrinsic_calibration(
         abs_path=os.path.join(os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
-        "{}_extrinsic.yaml".format(key)))  for key in cam_labels
-        }
+        "{}_extrinsic.yaml".format(key))) for key in cam_labels}
 
     # Local launch variables
-    local_cam_idx = 1; local_intrinsic=True; LOCAL_WIN_NAME="Local_visualizer"
+    LOCAL_WIN_NAME="Local_visualizer"
+    local_cam_idx = 1;   # Camera index
+    local_intrinsic=True # Enable/Disable intrinsic calibration 
+    local_stitcher=True  # Enable/Disable local stitcher
+    
     while not rospy.is_shutdown():
 
         # Read into a list all images read from the threads
@@ -87,10 +90,11 @@ def main():
         # Concatenate all list images in one big 3D matrix and write them into memory
         video_map.write(np.concatenate(images, axis=1)) 
 
+        # Create dictionary of images with keys as cameras labels
         images_dic= dict([ (label, img) for img, label in zip(images, cam_labels) ]) 
 
-        # Suspend execution of R expressions for a specified time interval. 
-        r.sleep()
+        # Create stitcher object if it doesnt exist
+        if not 'CamsSticher' in locals(): CamsSticher=Stitcher(images_dic=images_dic)
 
         # ---------------------------------------------------------------------
         # Visual debugging - Visual debugging - Visual debugging - Visual debug
@@ -98,6 +102,7 @@ def main():
 
             cam_key="CAM{}".format(local_cam_idx)
             img = images_dic[cam_key]
+            
             # If intrinsic calibration available
             if intrinsic_calibration["mtx"] is not None and local_intrinsic:
                 # Undistord the image
@@ -113,6 +118,10 @@ def main():
             cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
             cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
 
+            # if local_stitcher: # Show stitcher
+            #     result=CamsSticher.stitch(images=(images_dic["CAM1"], images_dic["CAM2"]))
+            #     cv2.imshow(LOCAL_WIN_NAME+"_stitcher", result)
+
             cv2.imshow(LOCAL_WIN_NAME, img); # Show image 
             key = cv2.waitKey(10) # Capture user key
 
@@ -120,6 +129,8 @@ def main():
                 if local_cam_idx!=1: local_cam_idx-=1
             elif key==171: # (+) If pressed go to next camera
                 if local_cam_idx<len(images): local_cam_idx+=1
+            elif key==116: # (T) If pressed calibrate stitcher
+                CamsSticher.calibrate_stitcher(images_dic=images_dic)
             elif key==115: # (S) If pressed save image current capture
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
                 abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_key, pic_idx)
@@ -160,18 +171,12 @@ def main():
             elif key==100: # (D) If pressed start/Stop data capture
                 local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
                 local_data_capture_pub.publish(True)
-
-            
-            elif key==116:
-                TestSticher=StitcherBase()
-                TestSticher.calibrate(images=(images_dic["CAM1"], images_dic["CAM2"]))
-                result=TestSticher.stitch(images=(images_dic["CAM1"], images_dic["CAM2"]))
-                cv2.imshow("caca", result)
-
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
 
         # ---------------------------------------------------------------------
+        # Suspend execution of R expressions for a specified time interval. 
+        r.sleep()
 
 # =============================================================================
 if __name__ == '__main__':

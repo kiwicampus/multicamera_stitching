@@ -228,7 +228,8 @@ def load_extrinsic_calibration(abs_path):
         print("[INFO][EXTRINSIC]: Camera extrinsic calibration loaded")
 
     except IOError as e: # Report any error saving de data
-        print("[ERROR][EXTRINSIC]: Problem loading camera extrinsic calibration: {}".format(e))
+        print("[ERROR][EXTRINSIC]: Problem loading camera extrinsic calibration: {}".format(
+            (os.path.basename(abs_path))))
         return {"M":None, "INVM":None, "src_pts":None, "dts_pts":None, 
         "src_size":None, "dst_size":None, "ppmy":None, "ppmx":None}
 
