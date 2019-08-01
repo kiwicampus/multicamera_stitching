@@ -53,7 +53,6 @@ class DataCapture(Debugger):
         self.dest_folder = dest_folder # Destination folder to save images
         self.quality = int(os.getenv(key='IMG_QUALITY', default=80)) # [0-100] Quality to save images
         self.capture_id = 0 # Current data capture identifier for the csv file
-        self.images = [] # List of images to write
         self.recording = False # Enable/Disable data recording
         self.space_left = 100. # Space lef in usb device
         
@@ -100,21 +99,28 @@ class DataCapture(Debugger):
         return [bool(cam_status) for cam_status in cameras_status_str]
 
 # =============================================================================
-# TODO: Documentate
-def write_images(images, dest, cam_label, quality=80, img_format="jpg"):
-    """ 
+def write_images(images, dest, cam_label, cam_status, quality=80, img_format="jpg"):
+    """ Write images in absolute path destination
     Args:
+        images: `list` of cv2.math images to save in path
+        dest: `string` absolute path to save images
+        cam_label: `list` of strings with camera labels
+        quality: `int` percentage of quality to save images
+        images: `string` file extension/format to save images
     Returns:
+        timestamp: `timestamp` current timestamp with the moment when images were saved
+        images: `list` of string with the absolute path where images were saved
     """
 
     timestamp = int(time.time()*1000) # Get current time in timestamp format
     prefix = binascii.b2a_hex(os.urandom(2)) # Get a marihunero prefix
     cam_file_names = []
 
-    for img, cam_label in zip(images, cam_label):
-        file_name = '{}-{}_{}.{}'.format(prefix, timestamp, cam_label, img_format)
-        cv2.imwrite(os.path.join(dest, file_name), img, [cv2.IMWRITE_JPEG_QUALITY, quality])
-        cam_file_names.append(file_name)
+    for idx, (img, cam_label) in enumerate(zip(images, cam_label)):
+        if cam_status[idx]:
+            file_name = '{}-{}_{}.{}'.format(prefix, timestamp, cam_label, img_format)
+            cv2.imwrite(os.path.join(dest, file_name), img, [cv2.IMWRITE_JPEG_QUALITY, quality])
+            cam_file_names.append(file_name)
 
     return timestamp, cam_file_names
 
@@ -278,7 +284,8 @@ def main():
             # Write images in destination
             timestamp, cam_file_names = write_images(
                 images=[video_map.read(cam_label) for cam_label in cam_labels.keys()], 
-                dest=sub_folder_path, quality=MotionTestTrack.quality, cam_label=cam_labels.keys())
+                dest=sub_folder_path, quality=MotionTestTrack.quality, cam_label=cam_labels.keys(),
+                cam_status=MotionTestTrack.camera_status_service)
                 
             # Structure: 'capture_id', 'timestamp', 'camera_label', 'image_file'
             rows = [[MotionTestTrack.capture_id, timestamp, cam_label, file_name

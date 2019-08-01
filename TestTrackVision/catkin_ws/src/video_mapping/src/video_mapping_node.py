@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 # =============================================================================
+"""
+Code Information:
+	Programmer: John Betancourt G.
+	Phone: +57 (311) 813 7206
+	Mail: john@kiwicampus.com
+	Kiwi Campus Computer Vision & Ai Team
+"""
+# =============================================================================
 import numpy as np
 import rospy
 import cv2
@@ -14,6 +22,11 @@ from utils.cameras import CamerasSupervisor
 
 from std_msgs.msg import Bool
 
+from Intrinsic import perform_intrinsic_calibration
+from Intrinsic import save_intrinsic_calibration
+from Intrinsic import load_intrinsic_calibration
+from Intrinsic import validate_intrinsic_calibration
+
 # =============================================================================
 def setProcessName(name):
     if sys.platform in ['linux2', 'linux']:
@@ -27,6 +40,7 @@ def setProcessName(name):
 # =============================================================================
 def main():
 
+    # Enable(1)/Disable(0) local run
     LOCAL_RUN=int(os.getenv(key="LOCAL_RUN", default=0))
 
     # Start rosnode
@@ -47,6 +61,14 @@ def main():
     main_debugger = Debugger() # Debugger that logs properly in stdout
     main_debugger.debugger(DEBUG_LEVEL_0, "Initiating main loop")
 
+    # Calibration variables
+    intrinsic_calibration = load_intrinsic_calibration(abs_path=os.path.dirname(
+        os.getenv(key="CAM_PORTS_PATH")), file_name="cam_intrinsic_{}X{}.yaml".format(
+            int(os.environ.get("VIDEO_WIDTH", 640)), int(os.environ.get("VIDEO_HEIGHT", 360))))
+    extrinsic_calibrations = {key:{"M":None, "INV":None} for key in cam_labels}
+
+    # Local launch variables
+    local_cam_idx = 0; local_intrinsic=True; local_extrinsic=True
     while not rospy.is_shutdown():
 
         # Read into a list all images read from the threads
@@ -61,14 +83,65 @@ def main():
         # ---------------------------------------------------------------------
         # Visual debugging - Visual debugging - Visual debugging - Visual debug
         if LOCAL_RUN:
-            for idx, img in enumerate(images):
-                cv2.imshow("CAM{}".format(cam_labels[idx]), img)
-            key = cv2.waitKey(10)
-            if   key==113: # (Q) If press then quit/restrat node
+            # for idx, img in enumerate(images):
+            #     cv2.imshow("CAM{}".format(cam_labels[idx]), img)
+            cv2.putText(images[local_cam_idx], "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
+            cv2.putText(images[local_cam_idx], "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
+            
+            img = images[local_cam_idx]
+            # If intrinsic calibration available
+            if intrinsic_calibration["mtx"] is not None and local_intrinsic:
+                img=cv2.undistort(src=img, cameraMatrix=intrinsic_calibration["mtx"], 
+                    distCoeffs=intrinsic_calibration["dist"])
+            
+                # If extrinsic calibration available 
+                if (extrinsic_calibrations[cam_labels[local_cam_idx]]["M"] is not None 
+                    and local_extrinsic):
+                    pass
+
+            cv2.imshow("Local_visualizer", img); key = cv2.waitKey(10)
+            if   key==173 or key==110: # (-) If pressed go to previous camera
+                if local_cam_idx!=0: local_cam_idx-=1
+            elif key==171 or key==98: # (+) If pressed go to next camera
+                if local_cam_idx<len(images)-1: local_cam_idx+=1
+            elif key==115: # (S) If pressed save image current capture
+                re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
+                if not os.path.isdir(re_path): os.mkdir(re_path)
+                abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
+                while os.path.isfile(abs_path):
+                    pic_idx+=1
+                    abs_path="{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
+                try:
+                    cv2.imwrite(filename=abs_path, img=images[local_cam_idx]) 
+                    main_debugger.debugger(DEBUG_LEVEL_0, "Image saved at {}".format(
+                        abs_path), log_type="info")
+                except:
+                    main_debugger.debugger(DEBUG_LEVEL_0, "Saving image ar {}".format(
+                        abs_path), log_type="err")               
+            elif key==113: # (Q) If pressed then quit/restrat node
                 exit()
             elif key==100: # (D) If pressed start/Stop data capture
                 local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
                 local_data_capture_pub.publish(True)
+            elif key==105: # (I) If pressed perform intrinsic camera calibration
+
+                # Perform intrinsic calibration from image gallery
+                intrinsic_calibration = perform_intrinsic_calibration(
+                    abs_path=os.getenv(key="CALIBRATION_PATH"), n_x=6, n_y=4)
+                
+                # Saves intrinsic calibration from image gallery
+                file_name=save_intrinsic_calibration(dest_path=os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
+                    intrinsic_calibration=intrinsic_calibration)
+                
+                intrinsic_calibration=load_intrinsic_calibration(abs_path=os.path.dirname(
+                    os.getenv(key="CAM_PORTS_PATH")), file_name=file_name)
+
+                # Validate calibration
+                validate_intrinsic_calibration(abs_path=os.getenv(key="CALIBRATION_PATH"), 
+                    intrinsic_calibration=intrinsic_calibration)
+            elif key==101: # (E) If pressed perform Extrinsic camera calibration
+                pass
+
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
             
