@@ -22,10 +22,14 @@ from utils.cameras import CamerasSupervisor
 
 from std_msgs.msg import Bool
 
+from Intrinsic import validate_intrinsic_calibration
 from Intrinsic import perform_intrinsic_calibration
 from Intrinsic import save_intrinsic_calibration
 from Intrinsic import load_intrinsic_calibration
-from Intrinsic import validate_intrinsic_calibration
+
+from Extrinsic import perform_extrinsic_calibration
+from Extrinsic import save_extrinsic_calibration
+from Extrinsic import load_extrinsic_calibration
 
 # =============================================================================
 def setProcessName(name):
@@ -66,9 +70,10 @@ def main():
         os.getenv(key="CAM_PORTS_PATH")), file_name="cam_intrinsic_{}X{}.yaml".format(
             int(os.environ.get("VIDEO_WIDTH", 640)), int(os.environ.get("VIDEO_HEIGHT", 360))))
     extrinsic_calibrations = {key:{"M":None, "INV":None} for key in cam_labels}
+    stitcher_config = {"intrisic":intrinsic_calibration}
 
     # Local launch variables
-    local_cam_idx = 0; local_intrinsic=True; local_extrinsic=True
+    local_cam_idx = 0; local_intrinsic=True; LOCAL_WIN_NAME="Local_visualizer"
     while not rospy.is_shutdown():
 
         # Read into a list all images read from the threads
@@ -85,12 +90,12 @@ def main():
         if LOCAL_RUN:
             # for idx, img in enumerate(images):
             #     cv2.imshow("CAM{}".format(cam_labels[idx]), img)
-            cv2.putText(images[local_cam_idx], "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
-            cv2.putText(images[local_cam_idx], "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
-            
+
             img = images[local_cam_idx]
             # If intrinsic calibration available
             if intrinsic_calibration["mtx"] is not None and local_intrinsic:
+
+                # Undistord the image
                 img=cv2.undistort(src=img, cameraMatrix=intrinsic_calibration["mtx"], 
                     distCoeffs=intrinsic_calibration["dist"])
             
@@ -99,7 +104,11 @@ def main():
                     and local_extrinsic):
                     pass
 
-            cv2.imshow("Local_visualizer", img); key = cv2.waitKey(10)
+
+            cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
+            cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
+
+            cv2.imshow(LOCAL_WIN_NAME, img); key = cv2.waitKey(10)
             if   key==173 or key==110: # (-) If pressed go to previous camera
                 if local_cam_idx!=0: local_cam_idx-=1
             elif key==171 or key==98: # (+) If pressed go to next camera
@@ -120,9 +129,6 @@ def main():
                         abs_path), log_type="err")               
             elif key==113: # (Q) If pressed then quit/restrat node
                 exit()
-            elif key==100: # (D) If pressed start/Stop data capture
-                local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
-                local_data_capture_pub.publish(True)
             elif key==105: # (I) If pressed perform intrinsic camera calibration
 
                 # Perform intrinsic calibration from image gallery
@@ -140,8 +146,14 @@ def main():
                 validate_intrinsic_calibration(abs_path=os.getenv(key="CALIBRATION_PATH"), 
                     intrinsic_calibration=intrinsic_calibration)
             elif key==101: # (E) If pressed perform Extrinsic camera calibration
-                pass
-
+                extrinsic_calibration=perform_extrinsic_calibration(
+                    img_src=img, WIN_NAME=LOCAL_WIN_NAME)
+                save_extrinsic_calibration(file_path=os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
+                    file_name="{}_extrinsic.yaml".format(cam_labels[local_cam_idx]), 
+                    extrinsic_calibration=extrinsic_calibration)
+            elif key==100: # (D) If pressed start/Stop data capture
+                local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
+                local_data_capture_pub.publish(True)
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
             
