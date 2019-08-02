@@ -104,16 +104,18 @@ def main():
                     and local_extrinsic):
                     pass
 
+
             cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
             cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
 
             cv2.imshow(LOCAL_WIN_NAME, img); key = cv2.waitKey(10)
-            if   key==173: # (-) If pressed go to previous camera
+            if   key==173 or key==110: # (-) If pressed go to previous camera
                 if local_cam_idx!=0: local_cam_idx-=1
-            elif key==171: # (+) If pressed go to next camera
+            elif key==171 or key==98: # (+) If pressed go to next camera
                 if local_cam_idx<len(images)-1: local_cam_idx+=1
             elif key==115: # (S) If pressed save image current capture
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
+                if not os.path.isdir(re_path): os.mkdir(re_path)
                 abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
                 while os.path.isfile(abs_path):
                     pic_idx+=1
