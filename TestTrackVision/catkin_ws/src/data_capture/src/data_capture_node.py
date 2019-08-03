@@ -76,22 +76,27 @@ class DataCapture(Debugger):
         # Check possible error cases
         # 1 - Check for space in storing device
         if self.space_left <= float(os.getenv('MIN_USB_SPACE', 3)):
-            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB FULL", log_type = 'warn')
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB FULL", 
+                log_type = 'warn')
         
         # 2 - Check if the usb device is connected
         elif self.dest_folder is None:
-            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB is not mounted", log_type = 'warn')
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, USB is not mounted", 
+                og_type = 'warn')
 
         # 3 - Check if there's no csv file
         elif self.csv_file is None:
-            self.debugger(DEBUG_LEVEL_0, "Can't record video, some problems with the USB", log_type = 'warn')
+            self.debugger(DEBUG_LEVEL_0, "Can't record video, some problems with \
+                 the USB", log_type = 'warn')
  
         # -----------------------------------------------------------------
         self.recording = not self.recording
         if self.recording: 
-            self.debugger(DEBUG_LEVEL_0, "Data recording {} started".format(self.capture_id), log_type = 'info')
+            self.debugger(DEBUG_LEVEL_0, "Data recording {} started".format(
+                self.capture_id), log_type = 'info')
         else: 
-            self.debugger(DEBUG_LEVEL_0, "Data recording {} stopped".format(self.capture_id), log_type = 'info')
+            self.debugger(DEBUG_LEVEL_0, "Data recording {} stopped".format(
+                self.capture_id), log_type = 'info')
             self.capture_id += 1 # Increment capture identifier
 
     def get_camera_Status(self):
@@ -257,20 +262,25 @@ def main():
         main_debugger.debugger(DEBUG_LEVEL_0, err, log_type='err')
 
     # Initialize memmap variable and wait for data
-    video_map = MultiImagesMemmap(mode="r", name="main_stream", memmap_path=os.getenv("MEMMAP_PATH", "/tmp"))
+    video_map = MultiImagesMemmap(mode="r", name="main_stream", 
+        memmap_path=os.getenv("MEMMAP_PATH", "/tmp"))
     video_map.wait_until_available() #initialize and find video data
-    main_debugger.debugger(DEBUG_LEVEL_0, "Memmap video data ready!", log_type='info')
+    main_debugger.debugger(DEBUG_LEVEL_0, "Memmap video data ready!", 
+        log_type='info')
 
     # Get cameras label and ports
     cam_labels=read_cam_ports(os.environ.get("CAM_PORTS_PATH"))
 
     try: # Wait for cameras status response
-        main_debugger.debugger(DEBUG_LEVEL_0, "Waiting for cameras status response", log_type='info')
+        main_debugger.debugger(DEBUG_LEVEL_0, "Waiting for cameras status response", 
+            log_type='info')
         rospy.wait_for_service('video_mapping/cameras_status', 3.0*len(cam_labels))
     except (rospy.ServiceException, rospy.ROSException), e:
-        main_debugger.debugger(DEBUG_LEVEL_0, "Did not get cameras response status", log_type='err')
+        main_debugger.debugger(DEBUG_LEVEL_0, "Did not get cameras response  \
+            status", log_type='err')
         return 1
-    main_debugger.debugger(DEBUG_LEVEL_0, "Got camera status service", log_type='info')
+    main_debugger.debugger(DEBUG_LEVEL_0, "Got camera status service", 
+        log_type='info')
 
     # Create object for data capture
     MotionTestTrack = DataCapture(csv_file=csv_file, dest_folder=base_path)

@@ -65,18 +65,20 @@ class Stitcher(Debugger):
 			try:
 				cv2.xfeatures2d.SIFT_create()
 			except:
-				self.debugger(DEBUG_LEVEL_0, "OpenCV is not a contrib version, check for the module xfeatures2d", log_type="err")
+				self.debugger(DEBUG_LEVEL_0, "OpenCV is not a contrib version, \
+					check for the module xfeatures2d", log_type="err")
 				return
 
 		# Calibrate every stitcher with images list
 		for idx, _ in enumerate(self.img_labels[:-1]):
-			self.debugger(DEBUG_LEVEL_0, "[STITCHER]: Calibrating stitcher {}".format(
-				self.stitchers[idx].sid), log_type="info")
+			# self.debugger(DEBUG_LEVEL_0, "[STITCHER]: Calibrating stitcher {}".format(
+			# 	self.stitchers[idx].sid), log_type="info")
 			images=(images_dic[self.img_labels[idx]], images_dic[self.img_labels[
 				idx+1]]) if idx==0 else (img_result, images_dic[self.img_labels[idx+1]])
 		
 			self.stitchers[idx].calibrate(images=images)
-			cv2.imshow("img_result", self.stitchers[idx].stitch(images=images))
+			img_result=self.stitchers[idx].stitch(images=images)
+			cv2.imshow("img_result", img_result)
 
 		# Print status of stitchers
 		for stitcher in self.stitchers:
@@ -101,9 +103,10 @@ class Stitcher(Debugger):
 # =============================================================================
 class StitcherBase(Debugger):
 
-	def __init__(self, sid=None):
+	def __init__(self, sid=None, super_mode=False):
 
 		self.sid = sid # Stitcher identifier
+		self.super_mode= super_mode # Enable/Disable stitcher in supermode
 
 		# Stitcher properties
 		self.cachedBH = None # Rotation/translation inverse matrix of image B
@@ -118,7 +121,9 @@ class StitcherBase(Debugger):
 		self.status = None # Status of matches between image A and B
 		
 		self.ABSize=None # Size of stitcher result
-
+		self.x_limits=None # Supermdoe: x limits coords for ROI
+		self.y_limits=None # Supermdoe: Y limits coords for ROI
+		
 	def stitch(self, images):
 		
 		# unpack the images
@@ -129,14 +134,23 @@ class StitcherBase(Debugger):
 			# apply a perspective transform to stitch the images together
 			# using the cached homography matrix
 			Bx_offset = int(self.cachedBH[0][2]); By_offset = int(self.cachedBH[1][2])
-			dst_img = cv2.warpPerspective(src=imageA, M=self.cachedAH, 
-				dsize=(self.ABSize[0], self.ABSize[1]))
-			dst_img[Bx_offset:Bx_offset+imageB.shape[0], 
-					By_offset:By_offset+imageB.shape[1]] = imageB
-			# self.draw_descriptors(img_src=dst_img)
+			dsize = (self.ABSize[0], self.ABSize[1])
+			dst_img = cv2.warpPerspective(src=imageA, M=self.cachedAH, dsize=dsize)
+			dst_img[By_offset:By_offset+imageB.shape[0], 
+					Bx_offset:Bx_offset+imageB.shape[1]] = imageB
+			
+			# Draw points and limits of stitcher
+			self.draw_descriptors(img_src=dst_img)
+
+			# Apply ROI if stitcher is in super mode
+			if self.super_mode:
+				dst_img=dst_img[
+					self.y_limits[0]:self.y_limits[1],
+					self.x_limits[0]:self.x_limits[1]]
+
 			return dst_img
 		else: # Otherwise return images concatenated
-			return np.concatenate(images, axis=1)
+			return imageB
 	
 	def reset(self):		
 		self.cachedBH = None # Rotation/translation inverse matrix of image B
@@ -148,8 +162,10 @@ class StitcherBase(Debugger):
 		self.matches = None # Matches point between image A and B
 		self.status = None # Status of matches between image A and B
 		self.ABSize=None # Size of stitcher result
+		self.x_limits=None # Supermdoe: x limits coords for ROI
+		self.y_limits=None # Supermdoe: Y limits coords for ROI
 
-	def calibrate(self, images, ratio=0.75, reprojThresh=4.0):
+	def calibrate(self, images, ratio=0.75, reprojThresh=4.0, xoffset=20, yoffset=20):
 		""" Finds a transposed correlation between images with key points 
 			correlated
 		Args:
@@ -183,33 +199,46 @@ class StitcherBase(Debugger):
 			Ax_coords=[pt[0] for pt in Apts]
 			Ay_coords=[pt[1] for pt in Apts]
 
-			Ax_min_coord = min(Ax_coords) if min(Ax_coords)<0 else 0
-			Ay_min_coord = min(Ay_coords) if min(Ay_coords)<0 else 0
+			Ax_min_coord = min(Ax_coords) if min(Ax_coords)>0 else abs(min(Ax_coords))
+			Ay_min_coord = min(Ay_coords) if min(Ay_coords)>0 else abs(min(Ay_coords))
 
 			self.cachedBH = np.float32([
-				[1, 0, abs(Ax_min_coord)], # Translation in x axis
-				[0, 1, abs(Ay_min_coord)], # Translation in y axis
+				[1, 0, Ax_min_coord+xoffset], # Translation in x axis
+				[0, 1, Ay_min_coord+yoffset], # Translation in y axis
 				[0, 0, 1]]) # Translation in Z axis
 			self.cachedBINVH= np.linalg.inv(self.cachedBH) # Inverse
 
-			self.cachedAH[0][2]+=abs(Ax_min_coord) # Translation in x axis
-			self.cachedAH[1][2]+=abs(Ay_min_coord) # Translation in y axis
+			self.cachedAH[0][2]+=Ax_min_coord+xoffset # Translation in x axis
+			self.cachedAH[1][2]+=Ay_min_coord+yoffset # Translation in y axis
 			self.cachedAINVH= np.linalg.inv(self.cachedAH) # Inverse
 
 			# Re-calculate points  of image A in stitchers result
-			self.Bpts=[get_projection_point_dst(pt_src=(pt[0], pt[1], 1), M=self.cachedBH) for pt in 
-				[(0, 0), (imageB.shape[1], 0), (imageB.shape[1], imageB.shape[0]), (0, imageB.shape[0])]]
+			self.Bpts=[
+				(Ax_min_coord+xoffset, Ay_min_coord+yoffset),
+				(Ax_min_coord+xoffset, imageB.shape[0]+Ay_min_coord+yoffset),
+				(imageB.shape[1]+Ax_min_coord+xoffset, imageB.shape[0]+Ay_min_coord+yoffset),
+				(imageB.shape[1]+Ax_min_coord+xoffset, Ay_min_coord+yoffset)]
 
 			# Re-calculate points  of image B in stitchers result
 			self.Apts=[get_projection_point_dst(pt_src=(pt[0], pt[1], 1), M=self.cachedAH) for pt in 
 				[(0, 0), (imageA.shape[1], 0), (imageA.shape[1], imageA.shape[0]), (0, imageA.shape[0])]]
 
-			x_coords=[pt[0] for pt in np.concatenate((self.Apts, self.Bpts), axis=1)]
-			y_coords=[pt[1] for pt in np.concatenate((self.Apts, self.Bpts), axis=1)]
+			x_coords=[pt[0] for pt in np.concatenate((self.Apts, self.Bpts), axis=0)]
+			y_coords=[pt[1] for pt in np.concatenate((self.Apts, self.Bpts), axis=0)]
 
 			self.ABSize=(
-				int(abs(max(x_coords)-min(x_coords))), # Stitcher result width
-				int(abs(max(y_coords)-min(y_coords)))) # Stitcher result height
+				int(abs(max(x_coords)-min(x_coords))+2*xoffset), # Stitcher result width
+				int(abs(max(y_coords)-min(y_coords))+2*yoffset)) # Stitcher result height
+
+			# Find for Supermdoe: X limits coords for ROI
+			self.x_limits=[
+				max([ptx for ptx in x_coords if ptx<self.ABSize[0]*0.5 ]),
+				min([ptx for ptx in x_coords if ptx>self.ABSize[0]*0.5 ])]
+
+			# Find for Supermdoe: Y limits coords for ROI
+			self.y_limits=[
+				max([ptx for ptx in y_coords if ptx<self.ABSize[1]*0.5 ]),
+				min([ptx for ptx in y_coords if ptx>self.ABSize[1]*0.5 ])]
 
 		else:
 			self.reset()
@@ -235,18 +264,18 @@ class StitcherBase(Debugger):
 
 		# check to see if we are using OpenCV 3.X
 		if is_cv3(or_better=False):
+
 			# detect and extract features from the image
 			try:
 				descriptor = cv2.xfeatures2d.SIFT_create()
 			except:
-				self.debugger(DEBUG_LEVEL_0, "OpenCV is not a contrib version, check for the module xfeatures2d", 
-					log_type="err")
+				self.debugger(DEBUG_LEVEL_0, "OpenCV is not a contrib version, \
+					check for the module xfeatures2d", log_type="err")
 				return None, None
 
 			kps, features = descriptor.detectAndCompute(image, None)
 
-		# otherwise, we are using OpenCV 2.4.X
-		else:
+		else: # otherwise, we are using OpenCV 2.4.X
 
 			# detect key-points in the image
 			detector = cv2.FeatureDetector_create("SIFT")
@@ -318,6 +347,14 @@ class StitcherBase(Debugger):
 			for pt in self.Apts:
 				cv2.circle(img_src, tuple(pt), 2, (0, 0, 255), -1)
 				cv2.circle(img_src, tuple(pt), 3, (255, 255, 0), 1)
+		if self.x_limits is not None:
+			for pt in self.x_limits:
+				cv2.line(img=img_src, pt1=(pt, 0), pt2=(pt, img_src.shape[0]), 
+					color=(0,255,0), thickness=1)
+		if self.y_limits is not None:
+			for pt in self.y_limits:
+				cv2.line(img=img_src, pt1=(0, pt), pt2=(img_src.shape[1], pt), 
+					color=(255,255,0), thickness=1)
 
  	def __str__(self):
 		return "Stitcher:{}| matches:{}".format(
