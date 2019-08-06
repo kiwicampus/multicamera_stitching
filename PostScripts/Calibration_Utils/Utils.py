@@ -263,4 +263,29 @@ def closest_point(pts, pt):
 
     return cl_pt 
 
+def print_list_text(img_src, str_list, origin=(0, 0), color=(0, 255, 255), 
+    line_break=20, thickness=2, left_origin=False, fontScale=0.45):
+
+    for idx, strprint in enumerate(str_list):
+        cv2.putText(img = img_src,
+                    text = strprint,
+                    org = (origin[0], origin[1] + (line_break * idx)),
+                    fontFace = cv2.FONT_HERSHEY_SIMPLEX, 
+                    fontScale = fontScale, 
+                    color = (0, 0, 0), 
+                    thickness = thickness+3, 
+                    lineType = cv2.LINE_AA,
+                    bottomLeftOrigin = left_origin)
+        cv2.putText(img = img_src,
+                    text = strprint,
+                    org = (origin[0], origin[1] + (line_break * idx)),
+                    fontFace = cv2.FONT_HERSHEY_SIMPLEX, 
+                    fontScale = fontScale, 
+                    color = color, 
+                    thickness = thickness, 
+                    lineType = cv2.LINE_AA,
+                    bottomLeftOrigin = left_origin)
+
+    return img_src
+
 # =============================================================================

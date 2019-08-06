@@ -94,7 +94,8 @@ def main():
         images_dic= dict([ (label, img) for img, label in zip(images, cam_labels) ]) 
 
         # Create stitcher object if it doesnt exist
-        if not 'CamsSticher' in locals(): CamsSticher=Stitcher(images_dic=images_dic)
+        if not 'CamsSticher' in locals(): CamsSticher=Stitcher(
+            images_dic=images_dic, super_mode=True)
 
         # ---------------------------------------------------------------------
         # Visual debugging - Visual debugging - Visual debugging - Visual debug
