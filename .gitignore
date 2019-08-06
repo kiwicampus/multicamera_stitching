@@ -1,5 +1,6 @@
 TestTrackVision/catkin_ws/build
 TestTrackVision/catkin_ws/devel
+TestTrackVision/catkin_ws/src/CMakeLists.txt
 TestTrackVision/config/cam_ports.yaml
 PostScripts/Calibration_Utils/Gallery/*
 *.pyc
