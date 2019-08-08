@@ -116,6 +116,7 @@ def main():
                     distCoeffs=intrinsic_calibration["dist"])
             
                 # If extrinsic calibration available 
+
                 if extrinsic_calibrations[cam_key]["M"] is not None:
                     draw_extrinsic(img_src=img, src_pts=extrinsic_calibrations[
                         cam_key]["src_pts"])
@@ -142,6 +143,7 @@ def main():
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
                 if not os.path.isdir(re_path): os.mkdir(re_path)
                 abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_key, pic_idx)
+
                 while os.path.isfile(abs_path):
                     pic_idx+=1
                     abs_path="{}/picture_{}({}).jpg".format(re_path, cam_key, pic_idx)
