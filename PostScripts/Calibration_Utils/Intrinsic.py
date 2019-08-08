@@ -270,4 +270,5 @@ if __name__ == '__main__':
         more important.
     """
     # Validate calibration
-    validate_intrinsic_calibration(abs_path="./Gallery", intrinsic_calibration=intrinsic_calibration)
+    validate_intrinsic_calibration(abs_path="./Gallery", 
+        intrinsic_calibration=intrinsic_calibration)

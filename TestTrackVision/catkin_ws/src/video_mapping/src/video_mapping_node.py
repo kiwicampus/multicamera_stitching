@@ -3,10 +3,10 @@
 """
 Code Information:
 	Programmer: John Betancourt G.
-	Phone: +57 (311) 813 7206
 	Mail: john@kiwicampus.com
 	Kiwi Campus Computer Vision & Ai Team
 """
+
 # =============================================================================
 import numpy as np
 import rospy
@@ -30,6 +30,9 @@ from Intrinsic import load_intrinsic_calibration
 from Extrinsic import perform_extrinsic_calibration
 from Extrinsic import save_extrinsic_calibration
 from Extrinsic import load_extrinsic_calibration
+from Extrinsic import draw_extrinsic
+
+from StitcherClass import Stitcher
 
 # =============================================================================
 def setProcessName(name):
@@ -69,11 +72,20 @@ def main():
     intrinsic_calibration = load_intrinsic_calibration(abs_path=os.path.dirname(
         os.getenv(key="CAM_PORTS_PATH")), file_name="cam_intrinsic_{}X{}.yaml".format(
             int(os.environ.get("VIDEO_WIDTH", 640)), int(os.environ.get("VIDEO_HEIGHT", 360))))
-    extrinsic_calibrations = {key:{"M":None, "INV":None} for key in cam_labels}
-    stitcher_config = {"intrisic":intrinsic_calibration}
+    extrinsic_calibrations = {key:load_extrinsic_calibration(
+        abs_path=os.path.join(os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
+        "{}_extrinsic.yaml".format(key))) for key in cam_labels}
 
     # Local launch variables
-    local_cam_idx = 0; local_intrinsic=True; LOCAL_WIN_NAME="Local_visualizer"
+    LOCAL_WIN_NAME="Local_visualizer"
+    local_cam_idx = 1;   # Camera index
+    local_intrinsic=True # Enable/Disable intrinsic calibration 
+    
+    # Stitcher variables
+    local_stitcher=True  # Enable/Disable local stitcher
+    stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
+        key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
+
     while not rospy.is_shutdown():
 
         # Read into a list all images read from the threads
@@ -82,44 +94,59 @@ def main():
         # Concatenate all list images in one big 3D matrix and write them into memory
         video_map.write(np.concatenate(images, axis=1)) 
 
-        # Suspend execution of R expressions for a specified time interval. 
-        r.sleep()
+        # Create dictionary of images with keys as cameras labels
+        images_dic= dict([ (label, img) for img, label in zip(images, cam_labels) ]) 
+
+        # Create stitcher object if it doesnt exist
+        if not 'CamsSticher' in locals(): 
+            CamsSticher=Stitcher(images_dic=images_dic, super_mode=False)
+            CamsSticher=CamsSticher.load_stitcher(load_path=stitcher_conf_path)
 
         # ---------------------------------------------------------------------
         # Visual debugging - Visual debugging - Visual debugging - Visual debug
         if LOCAL_RUN:
-            # for idx, img in enumerate(images):
-            #     cv2.imshow("CAM{}".format(cam_labels[idx]), img)
 
-            img = images[local_cam_idx]
+            cam_key="CAM{}".format(local_cam_idx)
+            img = images_dic[cam_key]
+            
             # If intrinsic calibration available
             if intrinsic_calibration["mtx"] is not None and local_intrinsic:
-
                 # Undistord the image
                 img=cv2.undistort(src=img, cameraMatrix=intrinsic_calibration["mtx"], 
                     distCoeffs=intrinsic_calibration["dist"])
             
                 # If extrinsic calibration available 
-                if (extrinsic_calibrations[cam_labels[local_cam_idx]]["M"] is not None 
-                    and local_extrinsic):
-                    pass
 
+                if extrinsic_calibrations[cam_key]["M"] is not None:
+                    draw_extrinsic(img_src=img, src_pts=extrinsic_calibrations[
+                        cam_key]["src_pts"])
+            
+            # Print some info in image
+            cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
+            cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
 
-            cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
-            cv2.putText(img, "{}".format(cam_labels[local_cam_idx]), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
+            if local_stitcher: # Show stitcher
+                Stitcher_img=CamsSticher.stitch(images_dic=images_dic)
+                cv2.imshow(LOCAL_WIN_NAME+"_stitcher", Stitcher_img)
 
-            cv2.imshow(LOCAL_WIN_NAME, img); key = cv2.waitKey(10)
-            if   key==173 or key==110: # (-) If pressed go to previous camera
-                if local_cam_idx!=0: local_cam_idx-=1
-            elif key==171 or key==98: # (+) If pressed go to next camera
-                if local_cam_idx<len(images)-1: local_cam_idx+=1
+            cv2.imshow(LOCAL_WIN_NAME, img); # Show image 
+            key = cv2.waitKey(10) # Capture user key
+
+            if   key==173 or key==98:  # (-) If pressed go to previous camera
+                if local_cam_idx!=1: local_cam_idx-=1
+            elif key==171 or key==110: # (+) If pressed go to next camera
+                if local_cam_idx<len(images): local_cam_idx+=1
+            elif key==116: # (T) If pressed calibrate stitcher
+                CamsSticher.calibrate_stitcher(images_dic=images_dic, save_path=stitcher_conf_path)
+                # cv2.imshow("Stitcher_result", CamsSticher.stitch(images_dic=images_dic))
             elif key==115: # (S) If pressed save image current capture
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
                 if not os.path.isdir(re_path): os.mkdir(re_path)
-                abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
+                abs_path = "{}/picture_{}({}).jpg".format(re_path, cam_key, pic_idx)
+
                 while os.path.isfile(abs_path):
                     pic_idx+=1
-                    abs_path="{}/picture_{}({}).jpg".format(re_path, cam_labels[local_cam_idx], pic_idx)
+                    abs_path="{}/picture_{}({}).jpg".format(re_path, cam_key, pic_idx)
                 try:
                     cv2.imwrite(filename=abs_path, img=images[local_cam_idx]) 
                     main_debugger.debugger(DEBUG_LEVEL_0, "Image saved at {}".format(
@@ -146,18 +173,20 @@ def main():
                 validate_intrinsic_calibration(abs_path=os.getenv(key="CALIBRATION_PATH"), 
                     intrinsic_calibration=intrinsic_calibration)
             elif key==101: # (E) If pressed perform Extrinsic camera calibration
-                extrinsic_calibration=perform_extrinsic_calibration(
+                cam_extrinsic=perform_extrinsic_calibration(
                     img_src=img, WIN_NAME=LOCAL_WIN_NAME)
                 save_extrinsic_calibration(file_path=os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
-                    file_name="{}_extrinsic.yaml".format(cam_labels[local_cam_idx]), 
-                    extrinsic_calibration=extrinsic_calibration)
+                    file_name="{}_extrinsic.yaml".format(cam_key), extrinsic_calibration=cam_extrinsic)
+                extrinsic_calibrations[cam_key]=cam_extrinsic
             elif key==100: # (D) If pressed start/Stop data capture
                 local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
                 local_data_capture_pub.publish(True)
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
-            
+
         # ---------------------------------------------------------------------
+        # Suspend execution of R expressions for a specified time interval. 
+        r.sleep()
 
 # =============================================================================
 if __name__ == '__main__':

@@ -68,7 +68,7 @@ def perform_extrinsic_calibration(img_src, WIN_NAME="extrinsic_calibration"):
             ppmx: `float` pixel per meter relation in x axis
     """
 
-    global CALIBRATION_EVENT
+    global CALIBRATION_EVENT, MOUSE_SRC_PTS
     DST_SIZE = (300, 200)
 
     # Create window and set mouse event
@@ -81,9 +81,14 @@ def perform_extrinsic_calibration(img_src, WIN_NAME="extrinsic_calibration"):
     img_dst = None
 
     while True:
-        # Copy image and draw gui
-        img_src_cp = draw_gui(img_src=img_src.copy())
         
+        MOUSE_SRC_PTS = organize_points(src_pts=MOUSE_SRC_PTS, src_size=(img_src.shape[1], 
+            img_src.shape[0])) if len(MOUSE_SRC_PTS)==4 else MOUSE_SRC_PTS
+
+        # Copy image and draw gui
+        img_src_cp = draw_extrinsic(img_src=img_src.copy(), src_pts=MOUSE_SRC_PTS)
+
+
         if CALIBRATION_EVENT: # True when four points
             CALIBRATION_EVENT=False
 
@@ -105,27 +110,25 @@ def perform_extrinsic_calibration(img_src, WIN_NAME="extrinsic_calibration"):
             
         # Show image and capture user key
         cv2.imshow(WIN_NAME, img_src_cp)
-        if img_dst is not None: cv2.imshow(WIN_NAME+"_PROJECTION", img_dst)
+        if img_dst is not None: cv2.imshow(WIN_NAME+"_projection", img_dst)
         key = cv2.waitKey(10)
 
         if key==113: # (Q) If pressed then break while
             break
         elif key!=-1:  # No key command
             print("Command or key action no found: {}".format(key))
-             
+        cv2.destroyWindow(winname=WIN_NAME+"_projection")
+
     return extrinsic_calibration
 
-def draw_gui(img_src):
+def draw_extrinsic(img_src, src_pts):
     """ draws points and geometries in image 
     Args:
         img_src: `cv2.math` image to draw components
+        src_pts: `list` of spacial transform
     Returns:
         img_src: `cv2.math` image with components drawn
     """
-
-    global MOUSE_SRC_PTS
-    MOUSE_SRC_PTS = organize_points(src_pts=MOUSE_SRC_PTS, src_size=(img_src.shape[1], 
-        img_src.shape[0])) if len(MOUSE_SRC_PTS)==4 else MOUSE_SRC_PTS
 
     # Draw current mouse position
     dotline(src=img_src, p1=(MOUSE_CPOS[0], 0), p2=(MOUSE_CPOS[0], img_src.shape[0]), 
@@ -134,25 +137,25 @@ def draw_gui(img_src):
         color=(0, 0, 255), thickness=2, Dl=5)
 
     # Draw contour
-    if len(MOUSE_SRC_PTS)>1:
-        cv2.drawContours(image=img_src, contours=np.array([MOUSE_SRC_PTS]), 
+    if len(src_pts)>1:
+        cv2.drawContours(image=img_src, contours=np.array([src_pts]), 
             contourIdx=-1, color=(0, 255, 0), thickness=1)
 
     # Draw click points
-    for pt in MOUSE_SRC_PTS:
+    for pt in src_pts:
         cv2.circle(img=img_src, center=tuple(pt), radius = 10, 
             color = (255, 0 ,0), thickness = 2)
         cv2.circle(img=img_src, center=tuple(pt), radius = 2, 
             color = (0, 0 ,255), thickness = -1)
 
-    if len(MOUSE_SRC_PTS)==4:
-        dotline(src=img_src, p1=(0, 0), p2=MOUSE_SRC_PTS[0], 
+    if len(src_pts)==4:
+        dotline(src=img_src, p1=(0, 0), p2=src_pts[0], 
             color=(255, 255, 255), thickness=1, Dl=5)
-        dotline(src=img_src, p1=(img_src.shape[1], 0), p2=MOUSE_SRC_PTS[1], 
+        dotline(src=img_src, p1=(img_src.shape[1], 0), p2=src_pts[1], 
             color=(255, 255, 255), thickness=1, Dl=5)
-        dotline(src=img_src, p1=(img_src.shape[1], img_src.shape[0]), p2=MOUSE_SRC_PTS[2], 
+        dotline(src=img_src, p1=(img_src.shape[1], img_src.shape[0]), p2=src_pts[2], 
             color=(255, 255, 255), thickness=1, Dl=5)
-        dotline(src=img_src, p1=(0, img_src.shape[0]), p2=MOUSE_SRC_PTS[3], 
+        dotline(src=img_src, p1=(0, img_src.shape[0]), p2=src_pts[3], 
             color=(255, 255, 255), thickness=1, Dl=5)
 
     return img_src
@@ -225,7 +228,8 @@ def load_extrinsic_calibration(abs_path):
         print("[INFO][EXTRINSIC]: Camera extrinsic calibration loaded")
 
     except IOError as e: # Report any error saving de data
-        print("[ERROR][EXTRINSIC]: Problem loading camera extrinsic calibration: {}".format(e))
+        print("[ERROR][EXTRINSIC]: Problem loading camera extrinsic calibration: {}".format(
+            (os.path.basename(abs_path))))
         return {"M":None, "INVM":None, "src_pts":None, "dts_pts":None, 
         "src_size":None, "dst_size":None, "ppmy":None, "ppmx":None}
 
