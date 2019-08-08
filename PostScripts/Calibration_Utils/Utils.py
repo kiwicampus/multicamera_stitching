@@ -109,8 +109,10 @@ def get_distor_point(pt, mtx, dist):
     return distor_point
 
 def CalculateProjectionMatrix(src_pts, dst_pts):  
-    """  
+    """  Calculates translation and rotation matrix
     Args:
+        src_pts: `list` source points
+        dst_pts: `list` destination points
     Returns:
     """
   
@@ -119,12 +121,15 @@ def CalculateProjectionMatrix(src_pts, dst_pts):
     src_points = np.array(src_pts, dtype=np.float32) 
     dst_points = np.array(dst_pts, dtype=np.float32)
     M = cv2.getPerspectiveTransform(src=src_points, dst=dst_points)
-    INVM = np.linalg.inv(M)
+    try:
+        INVM = np.linalg.inv(M)
+    except IOError as e: # Report any error 
+        return None, None
 
     return M, INVM
 
 def dotline(src, p1, p2, color, thickness, Dl):
-    """  draws a doted line on input image
+    """  Draws a doted line on input image
     Args:
         src: `cv2.mat` source image
         p1: `tuple` line's first point [pix, pix]
@@ -265,6 +270,19 @@ def closest_point(pts, pt):
 
 def print_list_text(img_src, str_list, origin=(0, 0), color=(0, 255, 255), 
     line_break=20, thickness=2, left_origin=False, fontScale=0.45):
+    """ Prints a text list in image
+    Args:
+        img_src: `cv2.math` image to draw text
+        str_list: `list` list of text to print
+        origin: `tuple` X and Y coordinates for text origin
+        color: `tuple` BGR color for text
+        line_break: `int` space between lines
+        thickness: `int` texts thickness
+        left_origin: `boolean` origin from left
+        fontScale: `float` font scale
+    Returns:
+        img_src: `cv2.math` input image to draw text
+    """
 
     for idx, strprint in enumerate(str_list):
         cv2.putText(img = img_src,

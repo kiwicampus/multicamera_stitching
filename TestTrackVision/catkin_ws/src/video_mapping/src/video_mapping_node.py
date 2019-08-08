@@ -80,8 +80,12 @@ def main():
     LOCAL_WIN_NAME="Local_visualizer"
     local_cam_idx = 1;   # Camera index
     local_intrinsic=True # Enable/Disable intrinsic calibration 
-    local_stitcher=True  # Enable/Disable local stitcher
     
+    # Stitcher variables
+    local_stitcher=True  # Enable/Disable local stitcher
+    stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
+        key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
+
     while not rospy.is_shutdown():
 
         # Read into a list all images read from the threads
@@ -94,8 +98,9 @@ def main():
         images_dic= dict([ (label, img) for img, label in zip(images, cam_labels) ]) 
 
         # Create stitcher object if it doesnt exist
-        if not 'CamsSticher' in locals(): CamsSticher=Stitcher(
-            images_dic=images_dic, super_mode=True)
+        if not 'CamsSticher' in locals(): 
+            CamsSticher=Stitcher(images_dic=images_dic, super_mode=False)
+            CamsSticher=CamsSticher.load_stitcher(load_path=stitcher_conf_path)
 
         # ---------------------------------------------------------------------
         # Visual debugging - Visual debugging - Visual debugging - Visual debug
@@ -119,9 +124,9 @@ def main():
             cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
             cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
 
-            # if local_stitcher: # Show stitcher
-            #     result=CamsSticher.stitch(images=(images_dic["CAM1"], images_dic["CAM2"]))
-            #     cv2.imshow(LOCAL_WIN_NAME+"_stitcher", result)
+            if local_stitcher: # Show stitcher
+                Stitcher_img=CamsSticher.stitch(images_dic=images_dic)
+                cv2.imshow(LOCAL_WIN_NAME+"_stitcher", Stitcher_img)
 
             cv2.imshow(LOCAL_WIN_NAME, img); # Show image 
             key = cv2.waitKey(10) # Capture user key
@@ -131,7 +136,8 @@ def main():
             elif key==171 or key==110: # (+) If pressed go to next camera
                 if local_cam_idx<len(images): local_cam_idx+=1
             elif key==116: # (T) If pressed calibrate stitcher
-                CamsSticher.calibrate_stitcher(images_dic=images_dic)
+                CamsSticher.calibrate_stitcher(images_dic=images_dic, save_path=stitcher_conf_path)
+                # cv2.imshow("Stitcher_result", CamsSticher.stitch(images_dic=images_dic))
             elif key==115: # (S) If pressed save image current capture
                 re_path = os.getenv(key="CALIBRATION_PATH"); pic_idx = 0
                 if not os.path.isdir(re_path): os.mkdir(re_path)
