@@ -29,11 +29,18 @@ class StartWindow(QMainWindow):
         self.slider.valueChanged.connect(self.update_tick)
 
     def load_files(self):
+        QFileDialog.getExistingDirectory(self, 'Select directory')
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
-        if files:
-            print(files)
+        options |= QFileDialog.DontUseCustomDirectoryIcons
+        dialog = QFileDialog()
+        gtk_window_set_transient_for()
+        dialog.setOptions(options)
+        dialog.setFileMode(QFileDialog.DirectoryOnly)
+        #files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
+        folder = dialog.getExistingDirectory(self, 'Select directory')
+        if folder:
+            print(folder)
 
     def update_tick(self, value):
         pass
