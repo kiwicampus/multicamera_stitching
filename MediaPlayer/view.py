@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThread, QTimer
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider
+from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog
 from pyqtgraph import ImageView
 import numpy as np
 
@@ -7,6 +7,8 @@ class StartWindow(QMainWindow):
     def __init__(self, camera = None):
         super(QMainWindow, self).__init__()
         self.camera = camera
+
+        self.setWindowTitle("Media player Vision system")
 
         self.central_widget = QWidget()
         self.button_loadfolder = QPushButton('Load folder', self.central_widget)
@@ -23,15 +25,18 @@ class StartWindow(QMainWindow):
         self.layout.addWidget(self.slider)
         self.setCentralWidget(self.central_widget)
 
-        self.button_loadfolder.clicked.connect(self.load_folder)
+        self.button_loadfolder.clicked.connect(self.load_files)
         self.slider.valueChanged.connect(self.update_tick)
 
-    def load_folder(self):
-        pass
+    def load_files(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
+        if files:
+            print(files)
 
     def update_tick(self, value):
         pass
-
 
 if __name__ == '__main__':
     app = QApplication([])
