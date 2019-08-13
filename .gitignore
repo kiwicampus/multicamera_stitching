@@ -1,4 +1,5 @@
 TestTrackVision/catkin_ws/build
 TestTrackVision/catkin_ws/devel
 TestTrackVision/config/cam_ports.yaml
+TestTrackVision/config/Stitcher_config.pkl
 *.pyc
