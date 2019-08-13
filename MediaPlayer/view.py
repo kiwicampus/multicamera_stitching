@@ -2,6 +2,8 @@ from PyQt5.QtCore import Qt, QThread, QTimer
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog
 from pyqtgraph import ImageView
 import numpy as np
+import os 
+import cv2
 
 class StartWindow(QMainWindow):
     def __init__(self, camera = None):
@@ -14,6 +16,10 @@ class StartWindow(QMainWindow):
         self.button_loadfolder = QPushButton('Load folder', self.central_widget)
         
         self.image_view = ImageView()
+        self.image_view.ui.histogram.hide()
+        self.image_view.ui.roiBtn.hide()
+        self.image_view.ui.menuBtn.hide()
+
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setRange(0,100)
         self.slider.setTickPosition(QSlider.TicksBelow)
@@ -26,24 +32,38 @@ class StartWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.button_loadfolder.clicked.connect(self.load_files)
-        self.slider.valueChanged.connect(self.update_tick)
+        self.slider.valueChanged.connect(self.update_image)
+
+        self.files = []
 
     def load_files(self):
-        QFileDialog.getExistingDirectory(self, 'Select directory')
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         options |= QFileDialog.DontUseCustomDirectoryIcons
         dialog = QFileDialog()
-        gtk_window_set_transient_for()
         dialog.setOptions(options)
         dialog.setFileMode(QFileDialog.DirectoryOnly)
         #files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
         folder = dialog.getExistingDirectory(self, 'Select directory')
         if folder:
             print(folder)
+            self.files = []
+            for r,d,f in os.walk(folder):
+                for file in f:
+                    if '.png' in file:
+                        self.files.append(os.path.join(r, file))
 
-    def update_tick(self, value):
-        pass
+            for f in self.files:
+                print(f)
+            image = cv2.imread(self.files[self.slider.value()])
+            self.image_view.setImage(image.T)
+
+    def update_image(self, value):
+        if value < len(self.files):
+            image = cv2.imread(self.files[value])
+            self.image_view.setImage(image.T)
+        else:
+            print('Slider value is outside the range of images')
 
 if __name__ == '__main__':
     app = QApplication([])
