@@ -7,18 +7,19 @@ class data_reader:
         - j: camera indexes, defining the camera used to take an image
         - k: timestamp indexes, the timestamp index at which the image was taken
     """
-    def __init__(self, path):
+    def __init__(self):
         """
         Constructor file with initialization of fundamental variables: timestamps sequence, camera labels and images 3-d list
         """
-        self.path = path # Absolute parent path to csv file  
+        self.path = None # Absolute parent path to csv file  
         
         self.timestamps = [[]] # Sequence of timestamps, one per capture 
         
         self.camera_labels = {} # Camera labels definition
         
-        self.images = [[[]]] # 3-dimensional tensor storing image paths according to capture index, camera index and timestamp index  
+        self.images = [[[]]] # 3-dimensional list storing image paths according to capture index, camera index and timestamp index  
         
+        # There variables are used in the _str__ method overloading
         self.line_count = None # Used to keep track of read rows from the csv file
         self.header_format = None # used to keep track of header rwo from csv file
 
@@ -44,11 +45,12 @@ class data_reader:
         message += '\n----Total lines read from the csv file: {} ----'.format(self.line_count)
         return message
 
-    def load_data(self):
+    def load_data(self, path):
         """
         Loads timestamps, camera labels and image data from the csv file
         """
-                         
+        self.path = path
+
         camera_index = 0    # Camera index used to traverse the csv file according to the camera order
         # Open csv file using the absolute path
         with open(self.path + '/data.csv') as csv_file:
@@ -109,7 +111,7 @@ class data_reader:
                     # Store image path in current_capture, camera_index and timestamp index positions
                     self.images[current_capture][camera_index].append(row[3])
                     
-                    # Increase camera index
+                    # Increase camera i
                     camera_index += 1
                     self.line_count += 1
     
@@ -120,6 +122,6 @@ class data_reader:
         return self.images[capture_idx][camera_idx][timestamp_idx]
 
 if __name__ == '__main__':
-    reader = data_reader('/media/overcode/eagle/data_capture-08-08-19')
-    reader.load_data()
+    reader = data_reader()
+    reader.load_data('/media/overcode/eagle/data_capture-08-08-19')
     print(reader)

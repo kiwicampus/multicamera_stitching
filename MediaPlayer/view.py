@@ -3,9 +3,17 @@ from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApp
 from pyqtgraph import ImageView
 import numpy as np
 import os 
-import cv2  
+import cv2
+from model import data_reader  
 
 class StartWindow(QMainWindow):
+    '''
+    Main interface window class with the follow main elements:
+        - Button to open data capture folder
+        - Image frame widget to visualize images
+        - Slider to transition images among the sequence of the capture
+
+    '''
     def __init__(self, camera = None):
         super(QMainWindow, self).__init__()
         self.camera = camera
@@ -36,6 +44,8 @@ class StartWindow(QMainWindow):
 
         self.files = []
 
+        self.data_reader = data_reader()
+
     def load_files(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -46,20 +56,18 @@ class StartWindow(QMainWindow):
         folder = dialog.getExistingDirectory(self, 'Select directory')
         if folder:
             print(folder)
-            self.files = []
-            for r,d,f in os.walk(folder):
-                for file in f:
-                    if '.jpg' in file:
-                        self.files.append(os.path.join(r, file))
+            self.data_reader.load_data(folder)
 
-            for f in self.files:
-                print(f)
-            image = cv2.imread(self.files[self.slider.value()])
+            self.slider.setRange(0, len(self.data_reader.images[0][0]))
+            self.slider.setTickPosition(QSlider.TicksBelow)
+            self.slider.setTickInterval(int(len(self.data_reader.images[0][0])/10))
+
+            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[0][0][self.slider.value()])
             self.image_view.setImage(image[:,:,0])
 
     def update_image(self, value):
-        if value < len(self.files):
-            image = cv2.imread(self.files[value])
+        if value < len(self.data_reader.images[0][0]):
+            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[0][0][value])
             self.image_view.setImage(image[:,:,0])
         else:
             print('Slider value is outside the range of images')
