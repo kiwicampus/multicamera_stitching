@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApp
 from pyqtgraph import ImageView
 import numpy as np
 import os 
-import cv2
+import cv2  
 
 class StartWindow(QMainWindow):
     def __init__(self, camera = None):
@@ -43,25 +43,24 @@ class StartWindow(QMainWindow):
         dialog = QFileDialog()
         dialog.setOptions(options)
         dialog.setFileMode(QFileDialog.DirectoryOnly)
-        #files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
         folder = dialog.getExistingDirectory(self, 'Select directory')
         if folder:
             print(folder)
             self.files = []
             for r,d,f in os.walk(folder):
                 for file in f:
-                    if '.png' in file:
+                    if '.jpg' in file:
                         self.files.append(os.path.join(r, file))
 
             for f in self.files:
                 print(f)
             image = cv2.imread(self.files[self.slider.value()])
-            self.image_view.setImage(image.T)
+            self.image_view.setImage(image[:,:,0])
 
     def update_image(self, value):
         if value < len(self.files):
             image = cv2.imread(self.files[value])
-            self.image_view.setImage(image.T)
+            self.image_view.setImage(image[:,:,0])
         else:
             print('Slider value is outside the range of images')
 
