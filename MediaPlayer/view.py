@@ -85,6 +85,30 @@ class StartWindow(QMainWindow):
         else:
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
 
+    def next_capture(self):
+        '''
+        Access to next capture data structure. Updates the image frame with the first image of the capture for the first camera index.
+        '''
+        pass
+    
+    def previous_capture(self):
+        '''
+        Access to previous capture data structure. Updates the image frame with the first image of the capture for the first camera index.
+        '''
+        pass
+
+    def next_camera(self):
+        '''
+        Access to next camera image set. Updates the image frame with the first image of the camera image set.
+        '''
+        pass
+    
+    def previous_camera(self):
+        '''
+        Access to next camera image set. Updates the image frame with the first image of the camera image set.
+        '''
+        pass
+
 if __name__ == '__main__':
     app = QApplication([])
     window = StartWindow()
