@@ -19,6 +19,9 @@ class data_reader:
         
         self.images = [[[]]] # 3-dimensional list storing image paths according to capture index, camera index and timestamp index  
         
+        self.current_capture = None # Current capture used to read images from 
+        self.current_camera = None # Current camera used to read images from
+
         # There variables are used in the _str__ method overloading
         self.line_count = None # Used to keep track of read rows from the csv file
         self.header_format = None # used to keep track of header rwo from csv file
@@ -114,7 +117,10 @@ class data_reader:
                     # Increase camera i
                     camera_index += 1
                     self.line_count += 1
-    
+
+        self.current_capture = 0
+        self.current_camera = len(self.camera_labels) - 1
+
     def get_image(self, timestamp_idx, camera_idx, capture_idx):
         """
         Get an image given a timestamp index, camera type and capture index

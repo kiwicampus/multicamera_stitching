@@ -23,7 +23,13 @@ class StartWindow(QMainWindow):
 
         self.central_widget = QWidget() # Central widget of the window
 
-        self.button_loadfolder = QPushButton('Load folder', self.central_widget) # Defines button and attaches it to te central widget
+        self.button_loadfolder = QPushButton('Load folder', self.central_widget) # Defines button and attaches it to the central widget
+
+        self.button_next_capture = QPushButton('Next capture', self.central_widget)
+        self.button_previous_capture = QPushButton('Prev capture', self.central_widget)
+
+        self.button_next_camera = QPushButton('Next camera', self.central_widget) # Access to next camera image sequence for a given capture
+        self.button_previous_camera = QPushButton('Prev camera', self.central_widget) # Access to previous camera image sequence for a given capture
 
         self.image_view = ImageView() # Image frame definition
         self.image_view.ui.histogram.hide() # Hides histogram from image frame
@@ -37,12 +43,25 @@ class StartWindow(QMainWindow):
 
         self.layout = QVBoxLayout(self.central_widget) # Vertical layout definition
         self.layout.addWidget(self.button_loadfolder) # Add button load folder to layout
+        self.layout.addWidget(self.button_next_capture) # Add button load folder to layout
+        self.layout.addWidget(self.button_previous_capture) # Add button load folder to layout
+        self.layout.addWidget(self.button_next_camera) # Add button load folder to layout
+        self.layout.addWidget(self.button_previous_camera) # Add button load folder to layout
         self.layout.addWidget(self.image_view) # Add image frame to layout
         self.layout.addWidget(self.slider) # Add horizontal slider to layout
         self.setCentralWidget(self.central_widget)
 
-        self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button
+        self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button loadfolder
+        self.button_next_capture.clicked.connect(self.next_capture) # Connects function next_capture to action clicked over button 
+        self.button_previous_capture.clicked.connect(self.previous_capture) # Connects function previous_capture to action clicked over button 
+        self.button_next_camera.clicked.connect(self.next_camera)
+        self.button_previous_camera.clicked.connect(self.previous_camera)
         self.slider.valueChanged.connect(self.update_image) # Connects function self.update_image to action change in slider position 
+
+        self.button_next_capture.setEnabled(False)
+        self.button_previous_capture.setEnabled(False)
+        self.button_next_camera.setEnabled(False)
+        self.button_previous_camera.setEnabled(False)
 
         self.data_reader = data_reader() # Instantiation of data reader class
 
@@ -66,11 +85,16 @@ class StartWindow(QMainWindow):
             print(folder)
             self.data_reader.load_data(folder) # load data from selected folder using the object data_reader
 
-            self.slider.setRange(0, len(self.data_reader.images[0][0])) # Sets slider range according to dimensions of self.data_reader.images list 
-            self.slider.setTickInterval(int(len(self.data_reader.images[0][0])/10)) # Positions ticks 1/10th of the total list length
+            self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
+            self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[0][0][self.slider.value()]) # Loads image 0
+            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
             self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+
+            self.button_next_capture.setEnabled(True)
+            self.button_previous_capture.setEnabled(True)
+            self.button_next_camera.setEnabled(True)
+            self.button_previous_camera.setEnabled(True)
         
 
     def update_image(self, value):
@@ -79,8 +103,8 @@ class StartWindow(QMainWindow):
         for a given capture image set
         '''
         # If value is in the range of self.data_reader.images
-        if value < len(self.data_reader.images[0][0]):
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[0][0][value]) # Load the image at the index value
+        if value < len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera]):
+            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][value]) # Load the image at the index value
             self.image_view.setImage(image[:,:,0]) # Displays image at index value in image frame
         else:
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
@@ -89,25 +113,66 @@ class StartWindow(QMainWindow):
         '''
         Access to next capture data structure. Updates the image frame with the first image of the capture for the first camera index.
         '''
-        pass
+        self.data_reader.current_capture += 1
+        if (self.data_reader.current_capture > (len(self.data_reader.images)-1)):
+            self.data_reader.current_capture = 0
+        
+        self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
+
+        self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
+        self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
+        self.slider.setValue(0)
+
+        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
+        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+
     
     def previous_capture(self):
         '''
         Access to previous capture data structure. Updates the image frame with the first image of the capture for the first camera index.
         '''
-        pass
+        self.data_reader.current_capture -= 1
+        if (self.data_reader.current_capture < 0):
+            self.data_reader.current_capture = len(self.data_reader.images)-1
+        
+        self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
+
+        self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
+        self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
+        self.slider.setValue(0)
+
+        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
+        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
 
     def next_camera(self):
         '''
         Access to next camera image set. Updates the image frame with the first image of the camera image set.
         '''
-        pass
+        self.data_reader.current_camera -= 1
+        if (self.data_reader.current_camera < 0):
+            self.data_reader.current_camera = len(self.data_reader.camera_labels)-1  
+
+        self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
+        self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
+        self.slider.setValue(0)
+
+        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
+        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
     
     def previous_camera(self):
         '''
         Access to next camera image set. Updates the image frame with the first image of the camera image set.
         '''
-        pass
+        self.data_reader.current_camera += 1
+        if (self.data_reader.current_camera > (len(self.data_reader.camera_labels)-1)):
+            self.data_reader.current_camera = 0
+
+        self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
+        self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
+        self.slider.setValue(0)
+
+        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
+        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
 
 if __name__ == '__main__':
     app = QApplication([])
