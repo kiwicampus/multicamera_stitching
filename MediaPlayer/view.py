@@ -83,18 +83,22 @@ class StartWindow(QMainWindow):
         folder = dialog.getExistingDirectory(self, 'Select directory') # Assigns the variable folder when path has been defined in the dialog
         if folder:
             print(folder)
-            self.data_reader.load_data(folder) # load data from selected folder using the object data_reader
+            try:
+                self.data_reader.load_data(folder) # load data from selected folder using the object data_reader
 
-            self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
-            self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
+                self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
+                self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-            self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
+                self.image_view.setImage(image[:,:,0]) # Displays image in image frame
 
-            self.button_next_capture.setEnabled(True)
-            self.button_previous_capture.setEnabled(True)
-            self.button_next_camera.setEnabled(True)
-            self.button_previous_camera.setEnabled(True)
+                self.button_next_capture.setEnabled(True)
+                self.button_previous_capture.setEnabled(True)
+                self.button_next_camera.setEnabled(True)
+                self.button_previous_camera.setEnabled(True)
+            except:
+                print('Error reading folder, verify that folder includes csv file and belongs to a datacapture type.')
+            
         
 
     def update_image(self, value):
