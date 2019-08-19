@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog, QLabel
 from pyqtgraph import ImageView
 import numpy as np
 import os 
@@ -16,10 +16,10 @@ class WorkerSignals(QObject):
 
     finished
         No data
-    
+
     error
         `tuple` (exctype, value, traceback.format_exc() )
-    
+
     result
         `object` data returned from processing, anything
 
@@ -102,8 +102,12 @@ class StartWindow(QMainWindow):
         self.button_previous_camera = QPushButton('Prev camera', self.central_widget) # Access to previous camera image sequence for a given capture
         
         self.button_play = QPushButton('Play/pause', self.central_widget) # Reproduce a sequence of images for a given capture and camera
-
+        
+        self.camera_label = QLabel(self.central_widget)
+        self.capture_label = QLabel(self.central_widget)
+        
         self.image_view = ImageView() # Image frame definition
+
         self.image_view.ui.histogram.hide() # Hides histogram from image frame
         self.image_view.ui.roiBtn.hide() # Hides roi button from image frame
         self.image_view.ui.menuBtn.hide() # Hides menu button from image frame
@@ -120,6 +124,10 @@ class StartWindow(QMainWindow):
         self.layout.addWidget(self.button_next_camera) # Add button load folder to layout
         self.layout.addWidget(self.button_previous_camera) # Add button load folder to layout
         self.layout.addWidget(self.button_play) # Add button play/pause to layout
+
+        self.layout.addWidget(self.camera_label)
+        self.layout.addWidget(self.capture_label)
+
         self.layout.addWidget(self.image_view) # Add image frame to layout
         self.layout.addWidget(self.slider) # Add horizontal slider to layout
         self.setCentralWidget(self.central_widget)
@@ -170,7 +178,11 @@ class StartWindow(QMainWindow):
                 self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
                 image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-                self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+                image = cv2.flip(image,0)
+                self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+
+                self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
+                self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
 
                 self.button_next_capture.setEnabled(True)
                 self.button_previous_capture.setEnabled(True)
@@ -189,7 +201,8 @@ class StartWindow(QMainWindow):
         # If value is in the range of self.data_reader.images
         if value < len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera]):
             image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][value]) # Load the image at the index value
-            self.image_view.setImage(image[:,:,0]) # Displays image at index value in image frame
+            image = cv2.flip(image,0)
+            self.image_view.setImage(image[:,:,0].T) # Displays image at index value in image frame
         else:
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
 
@@ -203,12 +216,16 @@ class StartWindow(QMainWindow):
         
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
+        self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
+        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
         image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+        image = cv2.flip(image,0)
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
 
     
     def previous_capture(self):
@@ -221,12 +238,16 @@ class StartWindow(QMainWindow):
         
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
+        self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
+        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
         image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+        image = cv2.flip(image,0)
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
 
     def next_camera(self):
         '''
@@ -236,12 +257,15 @@ class StartWindow(QMainWindow):
         if (self.data_reader.current_camera < 0):
             self.data_reader.current_camera = len(self.data_reader.camera_labels)-1  
 
+        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
         image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+        image = cv2.flip(image,0)
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
     
     def previous_camera(self):
         '''
@@ -251,34 +275,56 @@ class StartWindow(QMainWindow):
         if (self.data_reader.current_camera > (len(self.data_reader.camera_labels)-1)):
             self.data_reader.current_camera = 0
 
+        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
         image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+        image = cv2.flip(image,0)
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
 
     def progress_fn(self, n):
+        '''
+        Information of progress of the thread
+        '''
         print("%d%%" % n)
 
     def print_output(self,s):
+        '''
+        Print results of different operations in the thread
+        '''
         print(s)
 
     def thread_complete(self):
-        print("SEQUENCE REPRODUCTION COMPLETE!")
+        '''
+        Method called when the thread has been completed
+        '''
+        print("Sequence reproduction complete!")
+        self.inThread = False
         self.playing = False
 
-    def logic_play_pause(self,rate, progress_callback):
-        counter = 0
-        total = len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])
-        while (counter < total):
-            if (self.playing):
-                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][counter]) # Loads image_file
-                self.image_view.setImage(image[:,:,0]) # Displays image in image frame
-                time.sleep(rate) # Rate of reproduction of image sequence
-                progress_callback.emit(counter*100.0/total)
-                counter += 1        
+        # Enables slider after video reproduction
+        self.slider.setEnabled(True)
 
+    def logic_play_pause(self,rate, progress_callback):
+        '''
+        Main play and pause logic used to show a sequence of images at a give rate
+        '''
+        image_index = 0
+        total_images = len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])
+        while (image_index < total_images):
+            # When play function is enabled, play the sequence, otherwise do nothing
+            if (self.playing):
+                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][image_index]) # Loads image_file
+                image = cv2.flip(image,0)
+                self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+                time.sleep(rate) # Rate of reproduction of image sequence
+                progress_callback.emit(image_index*100.0/total_images) # Emit value of sequence progress to callback function
+                image_index += 1 # Increase image index to read next image in sequence
+            else:
+                time.sleep(0.2)
     def play_pause(self):
         '''
         Play the sequence of images for a capture and camera at a given time rate 
@@ -294,7 +340,10 @@ class StartWindow(QMainWindow):
 
             # Execute
             self.threadpool.start(worker)
-            self.inThread = True
+            self.inThread = True # Set thread in active state
+
+            # Disables slider when video is being reproduced
+            self.slider.setEnabled(False)
 
 if __name__ == '__main__':
     app = QApplication([])
