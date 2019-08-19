@@ -1,10 +1,80 @@
-from PyQt5.QtCore import Qt, QThread, QTimer
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog
 from pyqtgraph import ImageView
 import numpy as np
 import os 
 import cv2
 from model import data_reader  
+import time
+import traceback, sys
+
+class WorkerSignals(QObject):
+    '''
+    Defines the signals available from a running worker thread.
+
+    Supported signals are:
+
+    finished
+        No data
+    
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+    
+    result
+        `object` data returned from processing, anything
+
+    progress
+        `int` indicating % progress 
+
+    '''
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and 
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    '''
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()    
+
+        # Add the callback to our kwargs
+        self.kwargs['progress_callback'] = self.signals.progress        
+
+    @pyqtSlot()
+    def run(self):
+        '''
+        Initialise the runner function with passed args, kwargs.
+        '''
+        
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()  # Done
 
 class StartWindow(QMainWindow):
     '''
@@ -30,6 +100,8 @@ class StartWindow(QMainWindow):
 
         self.button_next_camera = QPushButton('Next camera', self.central_widget) # Access to next camera image sequence for a given capture
         self.button_previous_camera = QPushButton('Prev camera', self.central_widget) # Access to previous camera image sequence for a given capture
+        
+        self.button_play = QPushButton('Play/pause', self.central_widget) # Reproduce a sequence of images for a given capture and camera
 
         self.image_view = ImageView() # Image frame definition
         self.image_view.ui.histogram.hide() # Hides histogram from image frame
@@ -47,6 +119,7 @@ class StartWindow(QMainWindow):
         self.layout.addWidget(self.button_previous_capture) # Add button load folder to layout
         self.layout.addWidget(self.button_next_camera) # Add button load folder to layout
         self.layout.addWidget(self.button_previous_camera) # Add button load folder to layout
+        self.layout.addWidget(self.button_play) # Add button play/pause to layout
         self.layout.addWidget(self.image_view) # Add image frame to layout
         self.layout.addWidget(self.slider) # Add horizontal slider to layout
         self.setCentralWidget(self.central_widget)
@@ -56,6 +129,7 @@ class StartWindow(QMainWindow):
         self.button_previous_capture.clicked.connect(self.previous_capture) # Connects function previous_capture to action clicked over button 
         self.button_next_camera.clicked.connect(self.next_camera)
         self.button_previous_camera.clicked.connect(self.previous_camera)
+        self.button_play.clicked.connect(self.play_pause)
         self.slider.valueChanged.connect(self.update_image) # Connects function self.update_image to action change in slider position 
 
         self.button_next_capture.setEnabled(False)
@@ -64,6 +138,12 @@ class StartWindow(QMainWindow):
         self.button_previous_camera.setEnabled(False)
 
         self.data_reader = data_reader() # Instantiation of data reader class
+
+        self.threadpool = QThreadPool()
+        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+
+        self.inThread = False # True when thread of image sequence is running
+        self.playing = False # True when play is active
 
     def load_files(self):
         '''
@@ -177,6 +257,44 @@ class StartWindow(QMainWindow):
 
         image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
         self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+
+    def progress_fn(self, n):
+        print("%d%%" % n)
+
+    def print_output(self,s):
+        print(s)
+
+    def thread_complete(self):
+        print("SEQUENCE REPRODUCTION COMPLETE!")
+        self.playing = False
+
+    def logic_play_pause(self,rate, progress_callback):
+        counter = 0
+        total = len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])
+        while (counter < total):
+            if (self.playing):
+                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][counter]) # Loads image_file
+                self.image_view.setImage(image[:,:,0]) # Displays image in image frame
+                time.sleep(rate) # Rate of reproduction of image sequence
+                progress_callback.emit(counter*100.0/total)
+                counter += 1        
+
+    def play_pause(self):
+        '''
+        Play the sequence of images for a capture and camera at a given time rate 
+        This function creates another thread where the sequence of images will be reproduced
+        '''
+        self.playing = not(self.playing) # Toggles self.playing flag
+
+        if not(self.inThread):
+            worker = Worker(self.logic_play_pause, 0.033) # Any other args, kwargs are passed to the run function
+            worker.signals.result.connect(self.print_output)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.progress_fn)
+
+            # Execute
+            self.threadpool.start(worker)
+            self.inThread = True
 
 if __name__ == '__main__':
     app = QApplication([])
