@@ -8,6 +8,17 @@ from model import data_reader
 import time
 import traceback, sys
 
+class Slider(QSlider):
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            e.accept()
+            x = e.pos().x()
+            value = (self.maximum() - self.minimum()) * x / self.width() + self.minimum()
+            self.setValue(value)
+        else:
+            return super().mousePressEvent(self, e)
+
 class WorkerSignals(QObject):
     '''
     Defines the signals available from a running worker thread.
@@ -112,7 +123,7 @@ class StartWindow(QMainWindow):
         self.image_view.ui.roiBtn.hide() # Hides roi button from image frame
         self.image_view.ui.menuBtn.hide() # Hides menu button from image frame
 
-        self.slider = QSlider(Qt.Horizontal) # Horizontal slider definition
+        self.slider = Slider(Qt.Horizontal) # Horizontal slider definition
         self.slider.setRange(0,100) # Sets range of slider between 0 and 100
         self.slider.setTickPosition(QSlider.TicksBelow) # Position ticks below slider
         self.slider.setTickInterval(10) # Tick interval set to 10
@@ -144,6 +155,8 @@ class StartWindow(QMainWindow):
         self.button_previous_capture.setEnabled(False)
         self.button_next_camera.setEnabled(False)
         self.button_previous_camera.setEnabled(False)
+        self.slider.setEnabled(False)
+        
 
         self.data_reader = data_reader() # Instantiation of data reader class
 
@@ -190,6 +203,7 @@ class StartWindow(QMainWindow):
                 self.button_previous_capture.setEnabled(True)
                 self.button_next_camera.setEnabled(True)
                 self.button_previous_camera.setEnabled(True)
+                self.slider.setEnabled(True)
             except:
                 print('Error reading folder, verify that folder includes csv file and belongs to a datacapture type.')
             
