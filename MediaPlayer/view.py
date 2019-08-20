@@ -153,6 +153,8 @@ class StartWindow(QMainWindow):
         self.inThread = False # True when thread of image sequence is running
         self.playing = False # True when play is active
 
+        self.endThread = False # True when signal to end thread has been activated
+
     def load_files(self):
         '''
         This function loads all the images from a data capture folder using
@@ -219,6 +221,9 @@ class StartWindow(QMainWindow):
         self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
         self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
 
+        if self.inThread:
+            self.endThread = True
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
@@ -241,6 +246,9 @@ class StartWindow(QMainWindow):
         self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
         self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
 
+        if self.inThread:
+            self.endThread = True
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
@@ -259,6 +267,9 @@ class StartWindow(QMainWindow):
 
         self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
 
+        if self.inThread:
+            self.endThread = True
+
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
@@ -276,6 +287,9 @@ class StartWindow(QMainWindow):
             self.data_reader.current_camera = 0
 
         self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+
+        if self.inThread:
+            self.endThread = True
 
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
@@ -304,6 +318,7 @@ class StartWindow(QMainWindow):
         print("Sequence reproduction complete!")
         self.inThread = False
         self.playing = False
+        self.endThread = False
 
         # Enables slider after video reproduction
         self.slider.setEnabled(True)
@@ -316,15 +331,19 @@ class StartWindow(QMainWindow):
         total_images = len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])
         while (image_index < total_images):
             # When play function is enabled, play the sequence, otherwise do nothing
-            if (self.playing):
-                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][image_index]) # Loads image_file
-                image = cv2.flip(image,0)
-                self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
-                time.sleep(rate) # Rate of reproduction of image sequence
-                progress_callback.emit(image_index*100.0/total_images) # Emit value of sequence progress to callback function
-                image_index += 1 # Increase image index to read next image in sequence
+            if (self.endThread):
+                break
             else:
-                time.sleep(0.2)
+                if (self.playing):
+                    image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][image_index]) # Loads image_file
+                    image = cv2.flip(image,0)
+                    self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+                    time.sleep(rate) # Rate of reproduction of image sequence
+                    progress_callback.emit(image_index*100.0/total_images) # Emit value of sequence progress to callback function
+                    image_index += 1 # Increase image index to read next image in sequence
+                else:
+                    time.sleep(0.2)
+
     def play_pause(self):
         '''
         Play the sequence of images for a capture and camera at a given time rate 
