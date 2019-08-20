@@ -1,5 +1,6 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog, QLabel
+#from PyQt5 import QtQuick
 from pyqtgraph import ImageView
 import numpy as np
 import os 
@@ -89,6 +90,7 @@ class StartWindow(QMainWindow):
         '''
         super(QMainWindow, self).__init__()
 
+        Qt
         self.setWindowTitle("Media player Vision system")
 
         self.central_widget = QWidget() # Central widget of the window
@@ -198,8 +200,8 @@ class StartWindow(QMainWindow):
                 self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
 
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
-                self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
-                self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+                self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
+                self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
 
                 self.button_next_capture.setEnabled(True)
                 self.button_previous_capture.setEnabled(True)
@@ -236,8 +238,8 @@ class StartWindow(QMainWindow):
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
         self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" in the current capture.")
-        self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
-        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+        self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
+        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
 
         if self.inThread:
             self.endThread = True
@@ -262,8 +264,8 @@ class StartWindow(QMainWindow):
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
         self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" in the current capture.")
-        self.capture_label.setText("Capture "+str(self.data_reader.current_capture))
-        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+        self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
+        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
 
         if self.inThread:
             self.endThread = True
@@ -284,7 +286,7 @@ class StartWindow(QMainWindow):
         if (self.data_reader.current_camera < 0):
             self.data_reader.current_camera = len(self.data_reader.camera_labels)-1  
 
-        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
 
         if not(self.inThread):
             self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
@@ -309,7 +311,7 @@ class StartWindow(QMainWindow):
         if (self.data_reader.current_camera > (len(self.data_reader.camera_labels)-1)):
             self.data_reader.current_camera = 0
 
-        self.camera_label.setText("Camera "+str(2-self.data_reader.current_camera))
+        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
 
         if not(self.inThread):
             self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
@@ -379,7 +381,7 @@ class StartWindow(QMainWindow):
         self.playing = not(self.playing) # Toggles self.playing flag
 
         if not(self.inThread):
-            worker = Worker(self.logic_play_pause, 0.033) # Any other args, kwargs are passed to the run function
+            worker = Worker(self.logic_play_pause, 0.016) # Any other args, kwargs are passed to the run function
             worker.signals.result.connect(self.print_output)
             worker.signals.finished.connect(self.thread_complete)
             worker.signals.progress.connect(self.progress_fn)
