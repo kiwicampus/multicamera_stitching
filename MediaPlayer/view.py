@@ -9,6 +9,9 @@ from model import data_reader
 import time
 import traceback, sys
 
+from controller import calibration_utils
+from Extrinsic import draw_extrinsic
+
 class WorkerSignals(QObject):
     '''
     Defines the signals available from a running worker thread.
@@ -90,7 +93,6 @@ class StartWindow(QMainWindow):
         '''
         super(QMainWindow, self).__init__()
 
-        Qt
         self.setWindowTitle("Media player Vision system")
 
         self.central_widget = QWidget() # Central widget of the window
@@ -168,6 +170,13 @@ class StartWindow(QMainWindow):
         self.endThread = False # True when signal to end thread has been activated
         self.image_index = None # Used to define image index in current reproduction thread
 
+        self.calibrator = calibration_utils()
+        self.calibrator.load_calibration()
+        self.local_intrinsic = True
+        self.local_extrinsic = True
+
+        self.cam_labels = None 
+
     def load_files(self):
         '''
         This function loads all the images from a data capture folder using
@@ -191,6 +200,8 @@ class StartWindow(QMainWindow):
                     self.endThread = True
                 
                 self.data_reader.load_data(folder) # load data from selected folder using the object data_reader
+
+                self.cam_labels =  dict([(value, key) for key, value in self.data_reader.camera_labels.items()])
 
                 self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
                 self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
@@ -221,9 +232,7 @@ class StartWindow(QMainWindow):
         '''
         # If value is in the range of self.data_reader.images
         if value < len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera]):
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][value]) # Load the image at the index value
-            image = cv2.flip(image,0)
-            self.image_view.setImage(image[:,:,0].T) # Displays image at index value in image frame
+            self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][value])
         else:
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
 
@@ -248,9 +257,7 @@ class StartWindow(QMainWindow):
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
-        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        image = cv2.flip(image,0)
-        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+        self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
     
     def previous_capture(self):
@@ -274,9 +281,7 @@ class StartWindow(QMainWindow):
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
 
-        image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-        image = cv2.flip(image,0)
-        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+        self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
     def next_camera(self):
         '''
@@ -287,21 +292,19 @@ class StartWindow(QMainWindow):
             self.data_reader.current_camera = len(self.data_reader.camera_labels)-1  
 
         self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
-
+        
         if not(self.inThread):
             self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
             self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
             self.slider.setValue(0)
 
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-            image = cv2.flip(image,0)
-            self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+            self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
+ 
         
         # When a reproduction thread is running and pause is active, update image with new camera index
         if (self.inThread and not(self.playing)):
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index]) # Loads image 0
-            image = cv2.flip(image,0)
-            self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+            self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
+
     
     def previous_camera(self):
         '''
@@ -318,15 +321,33 @@ class StartWindow(QMainWindow):
             self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
             self.slider.setValue(0)
 
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-            image = cv2.flip(image,0)
-            self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+            self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
+            
         
         # When a reproduction thread is running and pause is active, update image with new camera index
         if (self.inThread and not(self.playing)):
-            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index]) # Loads image 0
-            image = cv2.flip(image,0)
-            self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+            self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
+
+    def show_image(self, image_path):
+        image = cv2.imread(image_path) # Loads image 
+        image = cv2.flip(image, 0)
+        
+        # If intrinsic calibration available
+        if self.calibrator.intrinsic_calibration["mtx"] is not None and self.local_intrinsic:
+            # Undistord the image
+            image=cv2.undistort(src=image, cameraMatrix=self.calibrator.intrinsic_calibration["mtx"], 
+                distCoeffs=self.calibrator.intrinsic_calibration["dist"])
+            print('Intrinsic has been applied!')
+            # If extrinsic calibration available 
+
+            current_camera_label = self.cam_labels[self.data_reader.current_camera]
+            if self.calibrator.extrinsic_calibrations[current_camera_label]["M"] is not None:
+                #image = cv2.warpPerspective(src=image, M=self.calibrator.extrinsic_calibrations[current_camera_label]["M"] ,
+                #    dsize=self.calibrator.extrinsic_calibrations[current_camera_label]["dst_size"])
+                draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
+                print('Extrinsic has been applied!')
+        
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
 
     def progress_fn(self, n):
         '''
