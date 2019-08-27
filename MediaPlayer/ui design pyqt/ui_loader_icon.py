@@ -15,6 +15,10 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_view.ui.histogram.hide() # Hides histogram from image frame
         self.image_view.ui.roiBtn.hide() # Hides roi button from image frame
         self.image_view.ui.menuBtn.hide() # Hides menu button from image frame
+        
+        self.stitcher_view.ui.histogram.hide() # Hides histogram from image frame
+        self.stitcher_view.ui.roiBtn.hide() # Hides roi button from image frame
+        self.stitcher_view.ui.menuBtn.hide() # Hides menu button from image frame
 
         rMyIcon = QtGui.QPixmap("icons/usb.png");
         self.button_loadfile.setIcon(QtGui.QIcon(rMyIcon))

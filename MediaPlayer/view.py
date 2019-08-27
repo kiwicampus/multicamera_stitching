@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QSlider, QFileDialog, QLabel
+from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QSlider, QFileDialog, QLabel, QCheckBox
 #from PyQt5 import QtQuick
 from pyqtgraph import ImageView
 import numpy as np
@@ -11,6 +11,7 @@ import traceback, sys
 
 from controller import calibration_utils
 from Extrinsic import draw_extrinsic
+from StitcherClass import Stitcher
 
 class WorkerSignals(QObject):
     '''
@@ -146,19 +147,28 @@ class StartWindow(QMainWindow):
         
         self.stitcher_label = QLabel()
         self.stitcher_view = ImageView() # Image frame definition
+        
+        self.checkbox_status_label = QLabel()
+        self.stitcher_checkbox = QCheckBox()
 
         self.stitcher_view.ui.histogram.hide() # Hides histogram from image frame
         self.stitcher_view.ui.roiBtn.hide() # Hides roi button from image frame
         self.stitcher_view.ui.menuBtn.hide() # Hides menu button from image frame
 
+
         self.layout_right = QVBoxLayout()
 
         self.layout_right.addWidget(self.stitcher_label)
+        self.layout_right.addWidget(self.checkbox_status_label)
+        self.layout_right.addWidget(self.stitcher_checkbox)
         self.layout_right.addWidget(self.stitcher_view)
         
         self.stitcher_label.setWordWrap(True)
         self.stitcher_label.setText("Stitched image\n\n")
         
+        self.checkbox_status_label.setWordWrap(True)
+        self.checkbox_status_label.setText("Check to enable stitching")
+   
         self.layout = QHBoxLayout(self.central_widget)
 
         self.layout.addLayout(self.layout_left)
@@ -173,6 +183,9 @@ class StartWindow(QMainWindow):
         self.button_previous_camera.clicked.connect(self.previous_camera)
         self.button_play.clicked.connect(self.play_pause)
         self.slider.valueChanged.connect(self.update_image) # Connects function self.update_image to action change in slider position 
+
+        self.stitcher_checkbox.setChecked(False)
+        self.stitcher_checkbox.stateChanged.connect(self.check_stitching)
 
         self.button_next_capture.setEnabled(False)
         self.button_previous_capture.setEnabled(False)
@@ -197,6 +210,8 @@ class StartWindow(QMainWindow):
         self.local_intrinsic = True
 
         self.cam_labels = None 
+
+        self.stitcher_ready = False
 
     def load_files(self):
         '''
@@ -229,6 +244,8 @@ class StartWindow(QMainWindow):
 
                 self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
+                self.image_index = self.slider.value()
+
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
                 self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
                 self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
@@ -252,6 +269,7 @@ class StartWindow(QMainWindow):
         # If value is in the range of self.data_reader.images
         if value < len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera]):
             self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][value])
+            self.image_index = value
         else:
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
 
@@ -275,6 +293,7 @@ class StartWindow(QMainWindow):
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
+        self.image_index = 0
 
         self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
@@ -299,6 +318,7 @@ class StartWindow(QMainWindow):
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
         self.slider.setValue(0)
+        self.image_index = 0
 
         self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
@@ -318,7 +338,7 @@ class StartWindow(QMainWindow):
             self.slider.setValue(0)
 
             self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
- 
+            self.image_index =  self.slider.value()
         
         # When a reproduction thread is running and pause is active, update image with new camera index
         if (self.inThread and not(self.playing)):
@@ -341,7 +361,7 @@ class StartWindow(QMainWindow):
             self.slider.setValue(0)
 
             self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
-            
+            self.image_index =  self.slider.value()
         
         # When a reproduction thread is running and pause is active, update image with new camera index
         if (self.inThread and not(self.playing)):
@@ -366,7 +386,13 @@ class StartWindow(QMainWindow):
                 #draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
                 print('Extrinsic has been applied!')
         
-        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+        self.image_view.setImage(image[:,:,0].T, autoRange= True) # Displays image in image frame
+
+    def show_stitcher(self, images_dic):
+        stitcher_img = self.camera_stitcher.stitch(images_dic=images_dic)
+        print('Shape: ', stitcher_img.shape)
+        self.stitcher_view.setImage(stitcher_img, autoRange= True)
+        
 
     def progress_fn(self, n):
         '''
@@ -432,6 +458,28 @@ class StartWindow(QMainWindow):
 
             # Disables slider when video is being reproduced
             self.slider.setEnabled(False)
+
+    def check_stitching(self, value):
+        if value != 0:
+            print('Checkbox has been checked!')
+            print('These are camera labels: ', self.cam_labels.keys())
+            print('Camera index: ', self.data_reader.current_camera)
+            print('Image index: ', self.image_index)
+            images_dic = {self.cam_labels[i]:self.data_reader.images[self.data_reader.current_capture][i][self.image_index] for i in self.cam_labels.keys()}
+            if not(self.stitcher_ready):
+                # Stitcher variables
+                stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
+                    key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
+                self.camera_stitcher =  Stitcher(images_dic = images_dic, super_mode = False)
+                self.camera_stitcher = self.camera_stitcher.load_stitcher(load_path = stitcher_conf_path) 
+                self.stitcher_ready = True
+                print('Stitcher file has been loaded!')
+            print(images_dic)
+            for key in images_dic.keys():
+                images_dic[key] = cv2.flip( cv2.imread(self.data_reader.path+'/data/'+images_dic[key]), 0)[:,:,0].T
+            self.show_stitcher(images_dic)
+        else:
+            print('Check is unchecked!')
 
 if __name__ == '__main__':
     app = QApplication([])
