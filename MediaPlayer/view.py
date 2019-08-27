@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
-from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QApplication, QSlider, QFileDialog, QLabel
+from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QSlider, QFileDialog, QLabel
 #from PyQt5 import QtQuick
 from pyqtgraph import ImageView
 import numpy as np
@@ -97,20 +97,20 @@ class StartWindow(QMainWindow):
 
         self.central_widget = QWidget() # Central widget of the window
 
-        self.button_loadfolder = QPushButton('Load folder', self.central_widget) # Defines button and attaches it to the central widget
+        self.button_loadfolder = QPushButton('Load folder') # Defines button and attaches it to the central widget
 
-        self.button_next_capture = QPushButton('Next capture', self.central_widget)
-        self.button_previous_capture = QPushButton('Prev capture', self.central_widget)
+        self.button_next_capture = QPushButton('Next capture')
+        self.button_previous_capture = QPushButton('Prev capture')
 
-        self.button_next_camera = QPushButton('Next camera', self.central_widget) # Access to next camera image sequence for a given capture
-        self.button_previous_camera = QPushButton('Prev camera', self.central_widget) # Access to previous camera image sequence for a given capture
+        self.button_next_camera = QPushButton('Next camera') # Access to next camera image sequence for a given capture
+        self.button_previous_camera = QPushButton('Prev camera') # Access to previous camera image sequence for a given capture
         
-        self.button_play = QPushButton('Play/pause', self.central_widget) # Reproduce a sequence of images for a given capture and camera
+        self.button_play = QPushButton('Play/pause') # Reproduce a sequence of images for a given capture and camera
         
-        self.info_label = QLabel(self.central_widget)
-        self.camera_number_label = QLabel(self.central_widget)
-        self.camera_label = QLabel(self.central_widget)
-        self.capture_label = QLabel(self.central_widget)
+        self.info_label = QLabel()
+        self.camera_number_label = QLabel()
+        self.camera_label = QLabel()
+        self.capture_label = QLabel()
         
         self.image_view = ImageView() # Image frame definition
 
@@ -123,27 +123,49 @@ class StartWindow(QMainWindow):
         self.slider.setTickPosition(QSlider.TicksBelow) # Position ticks below slider
         self.slider.setTickInterval(10) # Tick interval set to 10
 
-        self.layout = QVBoxLayout(self.central_widget) # Vertical layout definition
+        self.layout_left = QVBoxLayout() # Vertical layout definition
         
-        self.layout.addWidget(self.info_label) # Information label with basic instructions
-        self.layout.addWidget(self.button_loadfolder) # Add button load folder to layout
-        self.layout.addWidget(self.button_next_capture) # Add button load folder to layout
-        self.layout.addWidget(self.button_previous_capture) # Add button load folder to layout
-        self.layout.addWidget(self.button_next_camera) # Add button load folder to layout
-        self.layout.addWidget(self.button_previous_camera) # Add button load folder to layout
-        self.layout.addWidget(self.button_play) # Add button play/pause to layout
+        self.layout_left.addWidget(self.info_label) # Information label with basic instructions
+        self.layout_left.addWidget(self.button_loadfolder) # Add button load folder to layout
+        self.layout_left.addWidget(self.button_next_capture) # Add button load folder to layout
+        self.layout_left.addWidget(self.button_previous_capture) # Add button load folder to layout
+        self.layout_left.addWidget(self.button_next_camera) # Add button load folder to layout
+        self.layout_left.addWidget(self.button_previous_camera) # Add button load folder to layout
+        self.layout_left.addWidget(self.button_play) # Add button play/pause to layout
 
-        self.layout.addWidget(self.camera_number_label)
-        self.layout.addWidget(self.camera_label)
-        self.layout.addWidget(self.capture_label)
+        self.layout_left.addWidget(self.camera_number_label)
+        self.layout_left.addWidget(self.camera_label)
+        self.layout_left.addWidget(self.capture_label)
 
-        self.layout.addWidget(self.image_view) # Add image frame to layout
-        self.layout.addWidget(self.slider) # Add horizontal slider to layout
-        self.setCentralWidget(self.central_widget)
+        self.layout_left.addWidget(self.image_view) # Add image frame to layout
+        self.layout_left.addWidget(self.slider) # Add horizontal slider to layout
+        
         
         self.info_label.setWordWrap(True)
         self.info_label.setText("1) Load a data capture folder opening the Load Folder dialog. \n\n2) Then interact with different captures, cameras and sequence player using the buttons.")
         
+        self.stitcher_label = QLabel()
+        self.stitcher_view = ImageView() # Image frame definition
+
+        self.stitcher_view.ui.histogram.hide() # Hides histogram from image frame
+        self.stitcher_view.ui.roiBtn.hide() # Hides roi button from image frame
+        self.stitcher_view.ui.menuBtn.hide() # Hides menu button from image frame
+
+        self.layout_right = QVBoxLayout()
+
+        self.layout_right.addWidget(self.stitcher_label)
+        self.layout_right.addWidget(self.stitcher_view)
+        
+        self.stitcher_label.setWordWrap(True)
+        self.stitcher_label.setText("Stitched image\n\n")
+        
+        self.layout = QHBoxLayout(self.central_widget)
+
+        self.layout.addLayout(self.layout_left)
+        self.layout.addLayout(self.layout_right)
+
+        self.setCentralWidget(self.central_widget)
+
         self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button loadfolder
         self.button_next_capture.clicked.connect(self.next_capture) # Connects function next_capture to action clicked over button 
         self.button_previous_capture.clicked.connect(self.previous_capture) # Connects function previous_capture to action clicked over button 

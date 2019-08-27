@@ -1,6 +1,5 @@
 from Intrinsic import load_intrinsic_calibration
 from Extrinsic import load_extrinsic_calibration
-from Extrinsic import draw_extrinsic
 import subprocess
 import os
 
@@ -27,20 +26,18 @@ class calibration_utils():
 
         #shell=True, executable="/bin/bash"
         subprocess.Popen(['/bin/sh' , 'local_env_vars.sh'])
-
-        
-
+        '''
         # Calibration variables
         self.intrinsic_calibration = load_intrinsic_calibration(abs_path=os.path.dirname(
             os.getenv(key="CAM_PORTS_PATH")), file_name="cam_intrinsic_{}X{}.yaml".format(
                 int(os.environ.get("VIDEO_WIDTH", 640)), int(os.environ.get("VIDEO_HEIGHT", 360))))
 
-        self.extrinsic_calibrations = {key:load_extrinsic_calibration(
+        self.extrinsic_calibrations = { key:load_extrinsic_calibration(
             abs_path=os.path.join(os.path.dirname(os.getenv(key="CAM_PORTS_PATH")), 
-            "{}_extrinsic.yaml".format(key))) for key in ['CAM1', 'CAM2', 'CAM3']}
+            "{}_extrinsic.yaml".format(key))) for key in ['CAM1', 'CAM2', 'CAM3'] }
         
         print('Load of calibration variables')
-
+        '''
     
 if __name__=='__main__':
     calibration_object = calibration_utils()

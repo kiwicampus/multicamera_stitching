@@ -120,7 +120,6 @@ class data_reader:
 
         self.current_capture = 0
         self.current_camera = len(self.camera_labels) - 1
-        print(self)
 
     def get_image(self, timestamp_idx, camera_idx, capture_idx):
         """
