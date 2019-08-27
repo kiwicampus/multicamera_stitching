@@ -195,7 +195,6 @@ class StartWindow(QMainWindow):
         self.calibrator = calibration_utils()
         self.calibrator.load_calibration()
         self.local_intrinsic = True
-        self.local_extrinsic = True
 
         self.cam_labels = None 
 
@@ -228,9 +227,7 @@ class StartWindow(QMainWindow):
                 self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
                 self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
-                image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()]) # Loads image 0
-                image = cv2.flip(image,0)
-                self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+                self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
                 self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
@@ -364,9 +361,9 @@ class StartWindow(QMainWindow):
 
             current_camera_label = self.cam_labels[self.data_reader.current_camera]
             if self.calibrator.extrinsic_calibrations[current_camera_label]["M"] is not None:
-                #image = cv2.warpPerspective(src=image, M=self.calibrator.extrinsic_calibrations[current_camera_label]["M"] ,
-                #    dsize=self.calibrator.extrinsic_calibrations[current_camera_label]["dst_size"])
-                draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
+                image = cv2.warpPerspective(src=image, M=self.calibrator.extrinsic_calibrations[current_camera_label]["M"] ,
+                    dsize=self.calibrator.extrinsic_calibrations[current_camera_label]["dst_size"])
+                #draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
                 print('Extrinsic has been applied!')
         
         self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
@@ -407,9 +404,9 @@ class StartWindow(QMainWindow):
                 break
             else:
                 if (self.playing):
-                    image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index]) # Loads image_file
-                    image = cv2.flip(image,0)
-                    self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
+
+                    self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
+                    
                     time.sleep(rate) # Rate of reproduction of image sequence
                     progress_callback.emit(self.image_index*100.0/total_images) # Emit value of sequence progress to callback function
                     self.image_index += 1 # Increase image index to read next image in sequence

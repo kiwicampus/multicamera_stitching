@@ -15,7 +15,7 @@ class calibration_utils():
         self.extrinsic_calibrations = None
     
     def load_calibration(self):
-
+        '''
         path = os.getcwd()
         path_list = path.split(os.path.sep)
         path_final = os.path.join(os.path.sep,  *(path_list[1:-1]+['TestTrackVision', 'config']))
@@ -24,9 +24,12 @@ class calibration_utils():
         path = os.getcwd()
         print(path)
 
-        #shell=True, executable="/bin/bash"
-        subprocess.Popen(['/bin/sh' , 'local_env_vars.sh'])
+        #shell=True, executable="/bin/bash" '/bin/sh'
+        subprocess.Popen(['/bin/sh', 'local_env_vars.sh'])
+        #self.load_env_variables('local_env_vars.sh')
+        #execfile(path + os.path.sep + 'local_env_vars.sh')
         '''
+        
         # Calibration variables
         self.intrinsic_calibration = load_intrinsic_calibration(abs_path=os.path.dirname(
             os.getenv(key="CAM_PORTS_PATH")), file_name="cam_intrinsic_{}X{}.yaml".format(
@@ -37,8 +40,7 @@ class calibration_utils():
             "{}_extrinsic.yaml".format(key))) for key in ['CAM1', 'CAM2', 'CAM3'] }
         
         print('Load of calibration variables')
-        '''
-    
+
 if __name__=='__main__':
     calibration_object = calibration_utils()
     calibration_object.load_calibration()

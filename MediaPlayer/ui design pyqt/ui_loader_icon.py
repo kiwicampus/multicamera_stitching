@@ -16,18 +16,18 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_view.ui.roiBtn.hide() # Hides roi button from image frame
         self.image_view.ui.menuBtn.hide() # Hides menu button from image frame
 
-        rMyIcon = QtGui.QPixmap("usb.png");
+        rMyIcon = QtGui.QPixmap("icons/usb.png");
         self.button_loadfile.setIcon(QtGui.QIcon(rMyIcon))
         self.button_loadfile.setIconSize(QtCore.QSize(48,48))
 
-        prevMyIcon = QtGui.QPixmap("previous-1.png");
+        prevMyIcon = QtGui.QPixmap("icons/previous-1.png");
         self.button_previous_capture.setIcon(QtGui.QIcon(prevMyIcon))
         self.button_previous_capture.setIconSize(QtCore.QSize(48,48))
 
         self.button_previous_camera.setIcon(QtGui.QIcon(prevMyIcon))
         self.button_previous_camera.setIconSize(QtCore.QSize(48,48))
 
-        nextMyIcon = QtGui.QPixmap("skip-1.png");
+        nextMyIcon = QtGui.QPixmap("icons/skip-1.png");
         self.button_next_capture.setIcon(QtGui.QIcon(nextMyIcon))
         self.button_next_capture.setIconSize(QtCore.QSize(48,48))
 
@@ -35,9 +35,9 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_next_camera.setIconSize(QtCore.QSize(48,48))
         
         
-        playMyIcon = QtGui.QPixmap("play.png");
-        pauseMyIcon = QtGui.QPixmap("pause.png");
-        self.play_pause_icons = [QtGui.QPixmap("pause.png") , QtGui.QPixmap("play.png")]
+        playMyIcon = QtGui.QPixmap("icons/play.png");
+        pauseMyIcon = QtGui.QPixmap("icons/pause.png");
+        self.play_pause_icons = [QtGui.QPixmap("icons/pause.png") , QtGui.QPixmap("icons/play.png")]
         self.button_play.setIcon(QtGui.QIcon(playMyIcon))
         self.button_play.setIconSize(QtCore.QSize(48,48))
 
