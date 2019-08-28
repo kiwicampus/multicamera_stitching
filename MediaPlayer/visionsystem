@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# If you want a command to always run, put it here
+# Carry out specific functions when asked to by the system
+
+echo  "Starting Vision System"
+# run application you want to start
+export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/PostScripts/Calibration_Utils"
+export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/PostScripts/Stitcher"
+cd ../TestTrackVision/config
+source "local_env_vars.sh"
+cd ../../MediaPlayer
+python view.py
+exit 0
