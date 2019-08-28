@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal, QObject, QRunnable, pyqtSlot, QThreadPool, QRect
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QApplication, QSlider, QFileDialog, QLabel, QCheckBox
 #from PyQt5 import QtQuick
 from pyqtgraph import ImageView
@@ -139,7 +139,7 @@ class StartWindow(QMainWindow):
         self.layout_left.addWidget(self.capture_label)
 
         self.layout_left.addWidget(self.image_view) # Add image frame to layout
-        self.layout_left.addWidget(self.slider) # Add horizontal slider to layout
+        #self.layout_left.addWidget(self.slider) # Add horizontal slider to layout
         
         
         self.info_label.setWordWrap(True)
@@ -147,7 +147,7 @@ class StartWindow(QMainWindow):
         
         self.stitcher_label = QLabel()
         self.stitcher_view = ImageView() # Image frame definition
-        
+
         self.checkbox_status_label = QLabel()
         self.stitcher_checkbox = QCheckBox()
 
@@ -169,11 +169,14 @@ class StartWindow(QMainWindow):
         self.checkbox_status_label.setWordWrap(True)
         self.checkbox_status_label.setText("Check to enable stitching")
    
-        self.layout = QHBoxLayout(self.central_widget)
+        self.layout_h = QHBoxLayout()
 
-        self.layout.addLayout(self.layout_left)
-        self.layout.addLayout(self.layout_right)
+        self.layout_h.addLayout(self.layout_left)
+        self.layout_h.addLayout(self.layout_right)
 
+        self.layout = QVBoxLayout(self.central_widget)
+        self.layout.addLayout(self.layout_h)
+        self.layout.addWidget(self.slider)
         self.setCentralWidget(self.central_widget)
 
         self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button loadfolder
