@@ -48,7 +48,7 @@ def setProcessName(name):
 def main():
 
     # Enable(1)/Disable(0) local run
-    LOCAL_RUN=int(os.getenv(key="LOCAL_RUN", default=0))
+    LOCAL_RUN = int(os.getenv(key="LOCAL_RUN", default=0))
 
     # Start rosnode
     rospy.init_node('video_mapping_node', anonymous=True) # Node initialization
@@ -82,7 +82,7 @@ def main():
     local_intrinsic=True # Enable/Disable intrinsic calibration 
     
     # Stitcher variables
-    local_stitcher=True  # Enable/Disable local stitcher
+    local_stitcher=False  # Enable/Disable local stitcher
     stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
         key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
 

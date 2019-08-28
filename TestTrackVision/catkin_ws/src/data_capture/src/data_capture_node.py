@@ -286,6 +286,7 @@ def main():
     MotionTestTrack = DataCapture(csv_file=csv_file, dest_folder=base_path)
 
     # Init ros node cycle
+    main_debugger.debugger(DEBUG_LEVEL_0, "Ready for data capture!", log_type='info')
     while not rospy.is_shutdown():
 
         # If data capture then do
@@ -295,7 +296,7 @@ def main():
             timestamp, cam_file_names = write_images(
                 images=[video_map.read(cam_label) for cam_label in cam_labels.keys()], 
                 dest=sub_folder_path, quality=MotionTestTrack.quality, cam_label=cam_labels.keys(),
-                cam_status=MotionTestTrack.camera_status_service)
+                cam_status=MotionTestTrack.cameras_status)
                 
             # Structure: 'capture_id', 'timestamp', 'camera_label', 'image_file'
             rows = [[MotionTestTrack.capture_id, timestamp, cam_label, file_name
