@@ -245,9 +245,9 @@ class StartWindow(QMainWindow):
                 self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
                 self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
-                self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
-
                 self.image_index = self.slider.value()
+
+                self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
                 self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
@@ -379,7 +379,7 @@ class StartWindow(QMainWindow):
             # Undistord the image
             image=cv2.undistort(src=image, cameraMatrix=self.calibrator.intrinsic_calibration["mtx"], 
                 distCoeffs=self.calibrator.intrinsic_calibration["dist"])
-            print('Intrinsic has been applied!')
+            #print('Intrinsic has been applied!')
             # If extrinsic calibration available 
 
             current_camera_label = self.cam_labels[self.data_reader.current_camera]
@@ -387,13 +387,29 @@ class StartWindow(QMainWindow):
                 image = cv2.warpPerspective(src=image, M=self.calibrator.extrinsic_calibrations[current_camera_label]["M"] ,
                     dsize=self.calibrator.extrinsic_calibrations[current_camera_label]["dst_size"])
                 #draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
-                print('Extrinsic has been applied!')
+                #print('Extrinsic has been applied!')
         
         self.image_view.setImage(image[:,:,0].T, autoRange= True) # Displays image in image frame
+        if self.stitcher_checkbox.isChecked()!=0:
+            self.show_stitcher()
 
-    def show_stitcher(self, images_dic):
+    def show_stitcher(self):
+
+        images_dic = {self.cam_labels[i]:self.data_reader.images[self.data_reader.current_capture][i][self.image_index] for i in self.cam_labels.keys()}
+        if not(self.stitcher_ready):
+            # Stitcher variables
+            stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
+                key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
+            self.camera_stitcher =  Stitcher(images_dic = images_dic, super_mode = False)
+            self.camera_stitcher = self.camera_stitcher.load_stitcher(load_path = stitcher_conf_path) 
+            self.stitcher_ready = True
+            print('Stitcher file has been loaded!')
+        #print(images_dic)
+        for key in images_dic.keys():
+            images_dic[key] = cv2.flip( cv2.imread(self.data_reader.path+'/data/'+images_dic[key]), 0)[:,:,0].T
+
         stitcher_img = self.camera_stitcher.stitch(images_dic=images_dic)
-        print('Shape: ', stitcher_img.shape)
+        #print('Shape: ', stitcher_img.shape)
         self.stitcher_view.setImage(stitcher_img, autoRange= True)
         
 
@@ -435,7 +451,8 @@ class StartWindow(QMainWindow):
                 if (self.playing):
 
                     self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
-                    
+                    self.slider.setValue(self.image)
+
                     time.sleep(rate) # Rate of reproduction of image sequence
                     progress_callback.emit(self.image_index*100.0/total_images) # Emit value of sequence progress to callback function
                     self.image_index += 1 # Increase image index to read next image in sequence
@@ -460,7 +477,7 @@ class StartWindow(QMainWindow):
             self.inThread = True # Set thread in active state
 
             # Disables slider when video is being reproduced
-            self.slider.setEnabled(False)
+            #self.slider.setEnabled(False)
 
     def check_stitching(self, value):
         if value != 0:
@@ -468,20 +485,14 @@ class StartWindow(QMainWindow):
             print('These are camera labels: ', self.cam_labels.keys())
             print('Camera index: ', self.data_reader.current_camera)
             print('Image index: ', self.image_index)
-            images_dic = {self.cam_labels[i]:self.data_reader.images[self.data_reader.current_capture][i][self.image_index] for i in self.cam_labels.keys()}
-            if not(self.stitcher_ready):
-                # Stitcher variables
-                stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
-                    key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
-                self.camera_stitcher =  Stitcher(images_dic = images_dic, super_mode = False)
-                self.camera_stitcher = self.camera_stitcher.load_stitcher(load_path = stitcher_conf_path) 
-                self.stitcher_ready = True
-                print('Stitcher file has been loaded!')
-            print(images_dic)
-            for key in images_dic.keys():
-                images_dic[key] = cv2.flip( cv2.imread(self.data_reader.path+'/data/'+images_dic[key]), 0)[:,:,0].T
-            self.show_stitcher(images_dic)
+            
+            self.show_stitcher()
         else:
+            image = cv2.imread(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index]) # Loads image
+            image = image[:,:,0].T
+            shape = image.shape
+            dummy = np.zeros(shape)
+            self.stitcher_view.setImage(dummy)
             print('Check is unchecked!')
 
 if __name__ == '__main__':
