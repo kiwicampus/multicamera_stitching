@@ -14,6 +14,8 @@ import cv2
 import sys
 import os
 
+from datetime import datetime
+
 from extended_rospylogs import Debugger, update_debuggers, loginfo_cond, logerr_cond
 from extended_rospylogs import DEBUG_LEVEL_0, DEBUG_LEVEL_1, DEBUG_LEVEL_2, DEBUG_LEVEL_3, DEBUG_LEVEL_4
 
@@ -34,7 +36,10 @@ from Extrinsic import draw_extrinsic
 
 from StitcherClass import Stitcher
 
-# =============================================================================
+from model import data_reader
+from Utils import print_list_text
+
+# ===============================qqqqq=============================================
 def setProcessName(name):
     if sys.platform in ['linux2', 'linux']:
         import ctypes
@@ -46,6 +51,9 @@ def setProcessName(name):
 
 # =============================================================================
 def main():
+
+    # For LOCAL_RUN==2, get the data folder
+    folder_path = "/home/kiwivision/Downloads/data_capture-08-28-19"
 
     # Enable(1)/Disable(0) local run
     LOCAL_RUN = int(os.getenv(key="LOCAL_RUN", default=0))
@@ -87,15 +95,48 @@ def main():
         key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
 
     while not rospy.is_shutdown():
+        
+        if LOCAL_RUN!=2: # Read into a list all images read from the threads
+            images = list(map(lambda o: o.image, cameras_supervisor.camera_handlers))
+            # Create dictionary of images with keys as cameras labels
+            images_dic= dict([(label, img) for img, label in zip(images, cam_labels) ]) 
 
-        # Read into a list all images read from the threads
-        images = list(map(lambda o: o.image, cameras_supervisor.camera_handlers))
+        else: # Read from folder data
+            if not 'DataReader' in locals():  
+                DataReader = data_reader()
+                DataReader.load_data(path=folder_path)
+                main_debugger.debugger(DEBUG_LEVEL_0, 
+                    "Data loaded from folder:{}".format(folder_path))
+                print("\n"); print(DataReader); print("\n")
+                idx_capture=0
+                idx_time=0
+
+            images = list([cv2.imread(os.path.join(folder_path, "data",DataReader.get_image(
+                timestamp_idx=idx_time, camera_idx=idx_cam, capture_idx=idx_capture))) 
+                for idx_cam in range(0, len(DataReader.camera_labels))])
+            
+            # Creates dictionary of images with keys as cameras labels
+            images_dic= dict([(label, img) for img, label in zip(images, 
+                DataReader.camera_labels.keys()) ]) 
+
+            # Start from begining again assigning capture index and timestamp index
+            if idx_time<len(DataReader.timestamps[idx_capture])-1:
+                idx_time+=1
+            else:
+                idx_capture=idx_capture+1 if idx_capture<len(DataReader.images)-1 else 0
+                idx_time=0
+            DataReader_porc=round(idx_time/float(
+                len(DataReader.timestamps[idx_capture]))*100., 2)
+
+        data_status=True
+        for img in images:
+            if img is None: 
+                main_debugger.debugger(DEBUG_LEVEL_1, "Image with None type data", log_type="err")
+                data_status = False; break
+        if not data_status: continue
 
         # Concatenate all list images in one big 3D matrix and write them into memory
         video_map.write(np.concatenate(images, axis=1)) 
-
-        # Create dictionary of images with keys as cameras labels
-        images_dic= dict([ (label, img) for img, label in zip(images, cam_labels) ]) 
 
         # Create stitcher object if it doesnt exist
         if not 'CamsSticher' in locals(): 
@@ -116,21 +157,27 @@ def main():
                     distCoeffs=intrinsic_calibration["dist"])
             
                 # If extrinsic calibration available 
-
                 if extrinsic_calibrations[cam_key]["M"] is not None:
                     draw_extrinsic(img_src=img, src_pts=extrinsic_calibrations[
                         cam_key]["src_pts"])
             
             # Print some info in image
-            cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3, 8)
-            cv2.putText(img, "{}".format(cam_key), (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, 8)
+            srt2print=["{}".format(cam_key)]
+            if LOCAL_RUN==2: 
+                time=float(DataReader.timestamps[idx_capture][idx_time])/1000.
+                srt2print += [
+                    "Capture: {}/{}".format(idx_capture+1, len(DataReader.images)), 
+                    "{}".format(datetime.fromtimestamp(time)),
+                    "%{}".format(DataReader_porc)]
+            print_list_text(img, str_list=srt2print, origin=(10, 20), 
+                color=(0, 0, 255), line_break=22, thickness=1, fontScale=0.5)
 
             if local_stitcher: # Show stitcher
                 Stitcher_img=CamsSticher.stitch(images_dic=images_dic)
                 cv2.imshow(LOCAL_WIN_NAME+"_stitcher", Stitcher_img)
 
             cv2.imshow(LOCAL_WIN_NAME, img); # Show image 
-            key = cv2.waitKey(10) # Capture user key
+            key = cv2.waitKey(30) # Capture user key
 
             if   key==173 or key==98:  # (-) If pressed go to previous camera
                 if local_cam_idx!=1: local_cam_idx-=1
@@ -181,10 +228,16 @@ def main():
             elif key==100: # (D) If pressed start/Stop data capture
                 local_data_capture_pub = rospy.Publisher("MotionTestTrack/data_capture/capture", Bool, queue_size=2)
                 local_data_capture_pub.publish(True)
+            elif key==185 and LOCAL_RUN==2: # (9) If pressed Increment capture
+                idx_capture=idx_capture+1 if idx_capture<len(DataReader.images)-1 else 0
+                idx_time=0
+            elif key==182 and LOCAL_RUN==2: # (6) If pressed Increase capture
+                idx_capture=idx_capture-1 if idx_capture>=0 else idx_capture
+                idx_time=0
             elif key!=-1:  # No key command
                 print("Command or key action no found: {}".format(key))
 
-        # ---------------------------------------------------------------------
+        #6 ---------------------------------------------------------------------
         # Suspend execution of R expressions for a specified time interval. 
         r.sleep()
 

@@ -20,6 +20,7 @@ case "$1" in
       export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/catkin_ws/src/video_mapping/src/utils"
       export PYTHONPATH="${PYTHONPATH}:${PWD%/*/*}/PostScripts/Calibration_Utils"
       export PYTHONPATH="${PYTHONPATH}:${PWD%/*/*}/PostScripts/Stitcher"
+      export PYTHONPATH="${PYTHONPATH}:${PWD%/*/*}/MediaPlayer"
       source /opt/ros/kinetic/setup.bash
       source "${PWD%/*}/catkin_ws/devel/setup.bash"
       source "${PWD%/*}/config/local_env_vars.sh"
