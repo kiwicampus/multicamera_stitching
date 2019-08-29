@@ -51,7 +51,7 @@ class DataCapture(Debugger):
 
         self.csv_file = csv_file # csv absolute path to save images
         self.dest_folder = dest_folder # Destination folder to save images
-        self.quality = int(os.getenv(key='IMG_QUALITY', default=80)) # [0-100] Quality to save images
+        self.quality = int(os.getenv(key='DATA_CAPTURE_IMG_QUALITY', default=80)) # [0-100] Quality to save images
         self.capture_id = 0 # Current data capture identifier for the csv file
         self.recording = False # Enable/Disable data recording
         self.space_left = 100. # Space lef in usb device
@@ -75,7 +75,7 @@ class DataCapture(Debugger):
         # -----------------------------------------------------------------
         # Check possible error cases
         # 1 - Check for space in storing device
-        if self.space_left <= float(os.getenv('MIN_USB_SPACE', 3)):
+        if self.space_left <= float(os.getenv('DATA_CAPTURE_MIN_USB_SPACE', 3)):
             self.debugger(DEBUG_LEVEL_0, "Can't record video, USB FULL", 
                 log_type = 'warn')
         
