@@ -389,7 +389,7 @@ class StartWindow(QMainWindow):
                 #draw_extrinsic(img_src=image, src_pts=self.calibrator.extrinsic_calibrations[current_camera_label]["src_pts"])
                 #print('Extrinsic has been applied!')
         
-        self.image_view.setImage(image[:,:,0].T, autoRange= True) # Displays image in image frame
+        self.image_view.setImage(image[:,:,0].T) # Displays image in image frame
         if self.stitcher_checkbox.isChecked()!=0:
             self.show_stitcher()
 
@@ -451,7 +451,7 @@ class StartWindow(QMainWindow):
                 if (self.playing):
 
                     self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
-                    self.slider.setValue(self.image)
+                    self.slider.setValue(self.image_index)
 
                     time.sleep(rate) # Rate of reproduction of image sequence
                     progress_callback.emit(self.image_index*100.0/total_images) # Emit value of sequence progress to callback function
@@ -475,9 +475,6 @@ class StartWindow(QMainWindow):
             # Execute
             self.threadpool.start(worker)
             self.inThread = True # Set thread in active state
-
-            # Disables slider when video is being reproduced
-            #self.slider.setEnabled(False)
 
     def check_stitching(self, value):
         if value != 0:
