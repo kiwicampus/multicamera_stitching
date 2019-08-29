@@ -53,7 +53,7 @@ def setProcessName(name):
 def main():
 
     # For LOCAL_RUN==2, get the data folder
-    folder_path = "/home/kiwivision/Downloads/data_capture-08-28-19"
+    folder_path = str(os.getenv(key="LOCAL_DATA_PATH", default=""))
 
     # Enable(1)/Disable(0) local run
     LOCAL_RUN = int(os.getenv(key="LOCAL_RUN", default=0))
@@ -86,6 +86,7 @@ def main():
 
     # Local launch variables
     LOCAL_WIN_NAME="Local_visualizer"
+    local_pause = False
     local_cam_idx = 1;   # Camera index
     local_intrinsic=True # Enable/Disable intrinsic calibration 
     
@@ -96,12 +97,12 @@ def main():
 
     while not rospy.is_shutdown():
         
-        if LOCAL_RUN!=2: # Read into a list all images read from the threads
+        if LOCAL_RUN!=2 and not local_pause: # Read into a list all images read from the threads
             images = list(map(lambda o: o.image, cameras_supervisor.camera_handlers))
             # Create dictionary of images with keys as cameras labels
             images_dic= dict([(label, img) for img, label in zip(images, cam_labels) ]) 
 
-        else: # Read from folder data
+        elif not local_pause: # Read from folder data
             if not 'DataReader' in locals():  
                 DataReader = data_reader()
                 DataReader.load_data(path=folder_path)
@@ -234,7 +235,9 @@ def main():
             elif key==182 and LOCAL_RUN==2: # (6) If pressed Increase capture
                 idx_capture=idx_capture-1 if idx_capture>=0 else idx_capture
                 idx_time=0
-            elif key!=-1:  # No key command
+            elif key==32: # (Space bar) If pressed stop capture
+                local_pause=not local_pause
+            elif key!=-1: # No key command
                 print("Command or key action no found: {}".format(key))
 
         #6 ---------------------------------------------------------------------
