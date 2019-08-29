@@ -10,5 +10,5 @@ export PYTHONPATH="${PYTHONPATH}:${PWD%/*}/PostScripts/Stitcher"
 cd ../TestTrackVision/config
 source "local_env_vars.sh"
 cd ../../MediaPlayer
-python view.py
+python view_bkp.py
 exit 0

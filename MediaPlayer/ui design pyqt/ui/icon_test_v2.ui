@@ -35,6 +35,15 @@
              <property name="enabled">
               <bool>true</bool>
              </property>
+             <property name="baseSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Click here to open data capture folder</string>
+             </property>
              <property name="text">
               <string/>
              </property>
@@ -50,6 +59,19 @@
              </property>
              <property name="flat">
               <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="info_label_2">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Load folder</string>
              </property>
             </widget>
            </item>
@@ -348,6 +370,12 @@
         <layout class="QHBoxLayout" name="horizontalLayout_10">
          <item>
           <widget class="QCheckBox" name="stitcher_checkbox">
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
            <property name="text">
             <string>Check to enable stitching</string>
            </property>
@@ -369,10 +397,17 @@
         </layout>
        </item>
        <item>
+        <widget class="ImageWindow" name="stitcher_view" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
         <layout class="QVBoxLayout" name="verticalLayout_6">
-         <item>
-          <widget class="ImageView" name="stitcher_view"/>
-         </item>
          <item>
           <spacer name="verticalSpacer_3">
            <property name="orientation">
@@ -413,6 +448,12 @@
    <class>ImageView</class>
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
+  </customwidget>
+  <customwidget>
+   <class>ImageWindow</class>
+   <extends>QWidget</extends>
+   <header>sample</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>
