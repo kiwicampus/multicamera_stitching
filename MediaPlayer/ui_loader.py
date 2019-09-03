@@ -12,13 +12,6 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
         self.i = 35
-        self.image_view.ui.histogram.hide() # Hides histogram from image frame
-        self.image_view.ui.roiBtn.hide() # Hides roi button from image frame
-        self.image_view.ui.menuBtn.hide() # Hides menu button from image frame
-        
-        #self.stitcher_view.ui.histogram.hide() # Hides histogram from image frame
-        #self.stitcher_view.ui.roiBtn.hide() # Hides roi button from image frame
-        #self.stitcher_view.ui.menuBtn.hide() # Hides menu button from image frame
 
         rMyIcon = QtGui.QPixmap("icons/usb.png");
         self.button_loadfile.setIcon(QtGui.QIcon(rMyIcon))
@@ -47,7 +40,12 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.button_play.clicked.connect(self.toggle_icons)
         self.play = True
-        print(dir(self.stitcher_view))
+
+        self.stitcher_view.view.setImage('sharingan.jpg')
+        self.stitcher_view.view.pixmap_enabled = True
+        self.stitcher_view.view.setMouseTracking(True)
+
+        self.image_view.view.setImage('sharingan.jpg')
 
     def toggle_icons(self):
         self.play = not(self.play)
