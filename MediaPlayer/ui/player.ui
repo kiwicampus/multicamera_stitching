@@ -14,7 +14,7 @@
    <string>Media player</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>41</x>
@@ -33,7 +33,7 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_2">
              <item>
-              <widget class="QPushButton" name="button_loadfile">
+              <widget class="QPushButton" name="button_loadfolder">
                <property name="enabled">
                 <bool>true</bool>
                </property>

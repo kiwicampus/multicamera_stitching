@@ -61,7 +61,7 @@ class ImageVisor(QWidget):
 
     def setImage(self, path): 
         self.pixmap = QPixmap(path) # Update pixmap property with QPixmap object based on the image at path
-        self.update # Update painter
+        self.update() # Update painter
         
 class ImageWindow(QWidget):
     def __init__(self, parent=None):
