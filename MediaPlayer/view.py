@@ -124,7 +124,6 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         folder = dialog.getExistingDirectory(self, 'Select directory') # Assigns the variable folder when path has been defined in the dialog
         if folder:
-            print(folder)
             try:
                 if self.inThread:
                     self.endThread = True
@@ -139,7 +138,6 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 self.image_index = self.slider.value()
                 
-                print('Index values: ', self.data_reader.current_capture, self.data_reader.current_camera, self.image_index)
                 self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
@@ -262,7 +260,6 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             print('Slider value is outside the range of images') # Value in slider is out of range of list indexes
 
     def show_image(self, image_path):
-        print('Showing image: ', image_path)
         self.image_view.view.setImage(image_path)
         '''
         # If intrinsic calibration available

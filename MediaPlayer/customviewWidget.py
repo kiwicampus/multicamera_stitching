@@ -47,17 +47,19 @@ class ImageVisor(QWidget):
         '''
         Callback for mouse move events
         '''
-        self.pointer_position = event.pos() # Read mouse pointer position
-        print('Mouse position: ', self.pointer_position)
-        self.update() # Update painter
+        if self.pixmap_enabled:
+            self.pointer_position = event.pos() # Read mouse pointer position
+            print('Mouse position: ', self.pointer_position)
+            self.update() # Update painter
 
     def mousePressEvent(self, event):
         '''
         Callback for mouse press (clicks) events
         '''
-        self.click_position = event.pos() # Read mouse pointer position when clicking
-        self.mark_tracker.append(self.click_position) # Append position to the mark tracker for metrics
-        self.update() # Update painter
+        if self.pixmap_enabled:
+            self.click_position = event.pos() # Read mouse pointer position when clicking
+            self.mark_tracker.append(self.click_position) # Append position to the mark tracker for metrics
+            self.update() # Update painter
 
     def setImage(self, path): 
         self.pixmap = QPixmap(path) # Update pixmap property with QPixmap object based on the image at path
