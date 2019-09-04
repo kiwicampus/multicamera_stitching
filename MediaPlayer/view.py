@@ -68,11 +68,11 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_play.clicked.connect(self.toggle_icons)
         self.play = True
 
-        self.stitcher_view.view.setImage('sharingan.jpg')
+        self.stitcher_view.view.setImage('kiwibot.jpg')
         self.stitcher_view.view.pixmap_enabled = True
         self.stitcher_view.view.setMouseTracking(True)
 
-        self.image_view.view.setImage('sharingan.jpg')
+        self.image_view.view.setImage('kiwibot.jpg')
 
         self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button loadfolder
         self.slider.valueChanged.connect(self.update_image) # Connects function self.update_image to action change in slider position 
