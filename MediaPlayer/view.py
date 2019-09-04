@@ -20,6 +20,73 @@ from StitcherClass import Stitcher
 qtcreator_file  = "ui/player.ui" # Enter file here.
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtcreator_file)
 
+class WorkerSignals(QObject):
+    '''
+    Defines the signals available from a running worker thread.
+
+    Supported signals are:
+
+    finished
+        No data
+
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+
+    result
+        `object` data returned from processing, anything
+
+    progress
+        `int` indicating % progress 
+
+    '''
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and 
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    '''
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()    
+
+        # Add the callback to our kwargs
+        self.kwargs['progress_callback'] = self.signals.progress        
+
+    @pyqtSlot()
+    def run(self):
+        '''
+        Initialise the runner function with passed args, kwargs.
+        '''
+        
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()  # Done
 
 class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     '''
@@ -61,12 +128,12 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_play.setIcon(QtGui.QIcon(playMyIcon))
         self.button_play.setIconSize(QtCore.QSize(self.i,self.i))
 
+        self.info_label.setWordWrap(True)
+        self.info_label.setText("1) Load a data capture folder opening the Load Folder dialog. \n\n2) Then interact with different captures, cameras and sequence player using the buttons.")
+
         self.slider.setRange(0,100) # Sets range of slider between 0 and 100
         self.slider.setTickPosition(QSlider.TicksBelow) # Position ticks below slider
         #self.slider.setTickInterval(10) # Tick interval set to 10
-
-        self.button_play.clicked.connect(self.toggle_icons)
-        self.play = True
 
         self.stitcher_view.view.setImage('kiwibot.jpg')
         self.stitcher_view.view.pixmap_enabled = True
@@ -80,6 +147,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.button_previous_capture.clicked.connect(self.previous_capture) # Connects function previous_capture to action clicked over button 
         self.button_next_camera.clicked.connect(self.next_camera)
         self.button_previous_camera.clicked.connect(self.previous_camera)
+        self.button_play.clicked.connect(self.play_pause)
 
         self.button_next_capture.setEnabled(False)
         self.button_previous_capture.setEnabled(False)
@@ -134,15 +202,15 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.cam_labels =  dict([(value, key) for key, value in self.data_reader.camera_labels.items()])
 
                 self.slider.setRange(0, len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets slider range according to dimensions of self.data_reader.images list 
-                self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
+                #self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Positions ticks 1/10th of the total list length
 
                 self.image_index = self.slider.value()
                 
                 self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.slider.value()])
 
                 self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
-                self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
-                self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
+                self.capture_label.setText("Current capture: "+str((self.data_reader.current_capture)+1))
+                self.camera_label.setText("Current camera: "+str((2-self.data_reader.current_camera)+1))
 
                 self.button_next_capture.setEnabled(True)
                 self.button_previous_capture.setEnabled(True)
@@ -163,12 +231,14 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
-        self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" in the current capture.")
-        self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
-        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
+        self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
+        self.capture_label.setText("Current capture: "+str((self.data_reader.current_capture)+1))
+        self.camera_label.setText("Current camera: "+str((2-self.data_reader.current_camera)+1))
 
         if self.inThread:
             self.endThread = True
+            self.button_play.setIcon(QtGui.QIcon(self.play_pause_icons[int(self.playing)]))
+            self.button_play.setIconSize(QtCore.QSize(self.i,self.i))
 
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
@@ -188,12 +258,14 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         self.data_reader.current_camera = len(self.data_reader.camera_labels) - 1
 
-        self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" in the current capture.")
-        self.capture_label.setText("Capture "+str((self.data_reader.current_capture)+1))
-        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
+        self.camera_number_label.setText("There are "+str(len(self.data_reader.camera_labels))+" cameras in the current capture.")
+        self.capture_label.setText("Current capture: "+str((self.data_reader.current_capture)+1))
+        self.camera_label.setText("Current camera: "+str((2-self.data_reader.current_camera)+1))
 
         if self.inThread:
             self.endThread = True
+            self.button_play.setIcon(QtGui.QIcon(self.play_pause_icons[int(self.playing)]))
+            self.button_play.setIconSize(QtCore.QSize(self.i,self.i))
 
         self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
         self.slider.setTickInterval(int(len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])/10)) # Tick interval set to 10
@@ -210,7 +282,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if (self.data_reader.current_camera < 0):
             self.data_reader.current_camera = len(self.data_reader.camera_labels)-1  
 
-        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
+        self.camera_label.setText("Current camera: "+str((2-self.data_reader.current_camera)+1))
         
         if not(self.inThread):
             self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
@@ -233,7 +305,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if (self.data_reader.current_camera > (len(self.data_reader.camera_labels)-1)):
             self.data_reader.current_camera = 0
 
-        self.camera_label.setText("Camera "+str((2-self.data_reader.current_camera)+1))
+        self.camera_label.setText("Current camera: "+str((2-self.data_reader.current_camera)+1))
 
         if not(self.inThread):
             self.slider.setRange(0,len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])-1) # Sets range of slider between 0 and 100
@@ -280,10 +352,75 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.show_stitcher()
         '''
 
-    def toggle_icons(self):
-        self.play = not(self.play)
-        self.button_play.setIcon(QtGui.QIcon(self.play_pause_icons[int(self.play)]))
+    def progress_fn(self, n):
+            '''
+            Information of progress of the thread
+            '''
+            print("%d%%" % n)
+
+    def print_output(self,s):
+        '''
+        Print results of different operations in the thread
+        '''
+        print(s)
+
+    def thread_complete(self):
+        '''
+        Method called when the thread has been completed
+        '''
+        print("Sequence reproduction complete!")
+        self.button_play.setIcon(QtGui.QIcon(self.play_pause_icons[int(self.playing)]))
         self.button_play.setIconSize(QtCore.QSize(self.i,self.i))
+        
+        self.inThread = False
+        self.playing = False
+        self.endThread = False
+
+        self.image_index = 0
+
+        # Enables slider after video reproduction
+        self.slider.setEnabled(True)
+
+    def logic_play_pause(self,rate, progress_callback):
+        '''
+        Main play and pause logic used to show a sequence of images at a give rate
+        '''
+        total_images = len(self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera])
+        while (self.image_index < total_images):
+            # When play function is enabled, play the sequence, otherwise do nothing
+            if (self.endThread):
+                break
+            else:
+                if (self.playing):
+
+                    self.show_image(self.data_reader.path+'/data/'+self.data_reader.images[self.data_reader.current_capture][self.data_reader.current_camera][self.image_index])
+                    self.slider.setValue(self.image_index)
+
+                    time.sleep(rate) # Rate of reproduction of image sequence
+                    progress_callback.emit(self.image_index*100.0/total_images) # Emit value of sequence progress to callback function
+                    self.image_index += 1 # Increase image index to read next image in sequence
+                else:
+                    time.sleep(0.2)
+
+    def play_pause(self):
+        '''
+        Play the sequence of images for a capture and camera at a given time rate 
+        This function creates another thread where the sequence of images will be reproduced
+        '''
+        self.button_play.setIcon(QtGui.QIcon(self.play_pause_icons[int(self.playing)]))
+        self.button_play.setIconSize(QtCore.QSize(self.i,self.i))
+        
+        self.playing = not(self.playing) # Toggles self.playing flag
+
+        if not(self.inThread):
+            worker = Worker(self.logic_play_pause, 0.016) # Any other args, kwargs are passed to the run function
+            worker.signals.result.connect(self.print_output)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.progress_fn)
+
+            # Execute
+            self.threadpool.start(worker)
+            self.inThread = True # Set thread in active state
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

@@ -225,7 +225,20 @@
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
-            <widget class="QLabel" name="camera_label">
+            <spacer name="horizontalSpacer_5">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="capture_label">
              <property name="text">
               <string>TextLabel</string>
              </property>
@@ -245,7 +258,7 @@
             </spacer>
            </item>
            <item>
-            <widget class="QLabel" name="capture_label">
+            <widget class="QLabel" name="camera_label">
              <property name="text">
               <string>TextLabel</string>
              </property>
@@ -270,6 +283,19 @@
               <string>TextLabel</string>
              </property>
             </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_9">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
            </item>
           </layout>
          </item>
