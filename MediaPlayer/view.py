@@ -105,7 +105,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
         rMyIcon = QtGui.QPixmap("icons/usb.png");
         self.button_loadfolder.setIcon(QtGui.QIcon(rMyIcon))
-        self.button_loadfolder.setIconSize(QtCore.QSize(self.i,self.i))
+        self.button_loadfolder.setIconSize(QtCore.QSize(self.i//1.3,self.i//1.3))
 
         prevMyIcon = QtGui.QPixmap("icons/previous-1.png");
         self.button_previous_capture.setIcon(QtGui.QIcon(prevMyIcon))
@@ -135,11 +135,11 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.slider.setTickPosition(QSlider.TicksBelow) # Position ticks below slider
         #self.slider.setTickInterval(10) # Tick interval set to 10
 
-        self.stitcher_view.view.setImage('kiwibot.jpg')
+        #self.stitcher_view.view.setImage('kiwibot.jpg')
         self.stitcher_view.view.pixmap_enabled = True
         self.stitcher_view.view.setMouseTracking(True)
 
-        self.image_view.view.setImage('kiwibot.jpg')
+        #self.image_view.view.setImage('kiwibot.jpg')
 
         self.button_loadfolder.clicked.connect(self.load_files) # Connects function self.load_files to the action clicked over button loadfolder
         self.slider.valueChanged.connect(self.update_image) # Connects function self.update_image to action change in slider position 
