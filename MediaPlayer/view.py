@@ -103,18 +103,18 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.i = 35
 
-        rMyIcon = QtGui.QPixmap("icons/usb.png");
+        rMyIcon = QtGui.QPixmap("icons/usb.png")
         self.button_loadfolder.setIcon(QtGui.QIcon(rMyIcon))
-        self.button_loadfolder.setIconSize(QtCore.QSize(self.i//1.3,self.i//1.3))
+        self.button_loadfolder.setIconSize(QtCore.QSize(self.i,self.i))
 
-        prevMyIcon = QtGui.QPixmap("icons/previous-1.png");
+        prevMyIcon = QtGui.QPixmap("icons/previous-1.png")
         self.button_previous_capture.setIcon(QtGui.QIcon(prevMyIcon))
         self.button_previous_capture.setIconSize(QtCore.QSize(self.i,self.i))
 
         self.button_previous_camera.setIcon(QtGui.QIcon(prevMyIcon))
         self.button_previous_camera.setIconSize(QtCore.QSize(self.i,self.i))
 
-        nextMyIcon = QtGui.QPixmap("icons/skip-1.png");
+        nextMyIcon = QtGui.QPixmap("icons/skip-1.png")
         self.button_next_capture.setIcon(QtGui.QIcon(nextMyIcon))
         self.button_next_capture.setIconSize(QtCore.QSize(self.i,self.i))
 
@@ -131,11 +131,16 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.info_label.setWordWrap(True)
         self.info_label.setText("1) Load a data capture folder opening the Load Folder dialog. \n\n2) Then interact with different captures, cameras and sequence player using the buttons.")
 
+        # Set text labels 
+        self.capture_label.setText("...")
+        self.camera_label.setText("...")
+        self.camera_number_label.setText("...")
+
         self.slider.setRange(0,100) # Sets range of slider between 0 and 100
         self.slider.setTickPosition(QSlider.TicksBelow) # Position ticks below slider
         #self.slider.setTickInterval(10) # Tick interval set to 10
 
-        #self.stitcher_view.view.setImage('kiwibot.jpg')
+        self.stitcher_view.view.setImage('kiwibot.jpg')
         self.stitcher_view.view.pixmap_enabled = True
         self.stitcher_view.view.setMouseTracking(True)
 
@@ -352,6 +357,40 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.show_stitcher()
         '''
 
+    def show_stitcher(self):
+        '''
+        images_dic = {self.cam_labels[i]:self.data_reader.images[self.data_reader.current_capture][i][self.image_index] for i in self.cam_labels.keys()}
+        if not(self.stitcher_ready):
+            # Stitcher variables
+            stitcher_conf_path=save_path=os.path.join(os.path.dirname(os.getenv(
+                key="CAM_PORTS_PATH")), 'Stitcher_config.pkl')
+            self.camera_stitcher =  Stitcher(images_dic = images_dic, super_mode = False)
+            self.camera_stitcher = self.camera_stitcher.load_stitcher(load_path = stitcher_conf_path) 
+            self.stitcher_ready = True
+            print('Stitcher file has been loaded!')
+        
+        for key in images_dic.keys():
+            images_dic[key] = cv2.flip( cv2.imread(self.data_reader.path+'/data/'+images_dic[key]), 0)[:,:,0].T
+
+        stitcher_img = self.camera_stitcher.stitch(images_dic=images_dic)
+        '''
+        # Find a way to convert np.array to QPixmap
+        #self.stitcher_view.setImage(stitcher_img, autoRange= True)
+
+    def checkbox_stitching(self, value):
+        if value != 0:
+            print('Checkbox has been checked!')
+            print('These are camera labels: ', self.cam_labels.keys())
+            print('Camera index: ', self.data_reader.current_camera)
+            print('Image index: ', self.image_index)
+            self.show_stitcher()
+        else:
+            # Find a way to show a dummy image with QPixmap
+            '''
+            dummy = np.zeros(shape)
+            self.stitcher_view.setImage(dummy)
+            print('Check is unchecked!')
+            '''
     def progress_fn(self, n):
             '''
             Information of progress of the thread
@@ -413,7 +452,7 @@ class MyWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.playing = not(self.playing) # Toggles self.playing flag
 
         if not(self.inThread):
-            worker = Worker(self.logic_play_pause, 0.016) # Any other args, kwargs are passed to the run function
+            worker = Worker(self.logic_play_pause, 0.0165) # Video reproduction thread at 60 fps
             worker.signals.result.connect(self.print_output)
             worker.signals.finished.connect(self.thread_complete)
             worker.signals.progress.connect(self.progress_fn)
